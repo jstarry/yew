@@ -1,7 +1,9 @@
 extern crate yew;
 
-use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
+mod wasm_helper;
+
 use yew::virtual_dom::VNode;
+use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 struct Comp;
 
@@ -40,6 +42,7 @@ impl Renderable<Comp> for Comp {
 }
 
 #[test]
+#[wasm_helper::test]
 fn set_properties_to_component() {
     let _: VNode<Comp> = html! {
         <Comp: />
