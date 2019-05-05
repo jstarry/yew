@@ -407,15 +407,9 @@ yew = { git = "https://github.com/DenisKolodin/yew", features = ["toml", "yaml",
 
 Clone or download this repository.
 
-To build this project you need to have [cargo-web] installed:
-
-    $ cargo install cargo-web
-
-> Add `--force` option to ensure you install the latest version.
-
 ### Build
 
-    $ cargo web build
+    $ cargo build
 
 ### Running Tests
 

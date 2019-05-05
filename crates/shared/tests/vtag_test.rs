@@ -1,7 +1,9 @@
 extern crate yew;
 
-use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
+mod wasm_helper;
+
 use yew::virtual_dom::VNode;
+use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 struct Comp;
 
@@ -25,6 +27,7 @@ impl Renderable<Comp> for Comp {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_tags() {
     let a: VNode<Comp> = html! {
         <div></div>
@@ -43,6 +46,7 @@ fn it_compares_tags() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_text() {
     let a: VNode<Comp> = html! {
         <div>{ "correct" }</div>
@@ -61,6 +65,7 @@ fn it_compares_text() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_attributes() {
     let a: VNode<Comp> = html! {
         <div a="test",></div>
@@ -79,6 +84,7 @@ fn it_compares_attributes() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_children() {
     let a: VNode<Comp> = html! {
         <div>
@@ -103,6 +109,7 @@ fn it_compares_children() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_classes() {
     let a: VNode<Comp> = html! {
         <div class="test",></div>
@@ -126,6 +133,7 @@ fn it_compares_classes() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn classes_from_local_variables() {
     let a: VNode<Comp> = html! {
         <div class=("class-1", "class-2"),></div>
@@ -146,6 +154,7 @@ fn classes_from_local_variables() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn supports_multiple_classes_string() {
     let a: VNode<Comp> = html! {
         <div class="class-1 class-2   class-3",></div>
@@ -168,6 +177,7 @@ fn supports_multiple_classes_string() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_values() {
     let a: VNode<Comp> = html! {
         <input value="test",/>
@@ -186,6 +196,7 @@ fn it_compares_values() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_kinds() {
     let a: VNode<Comp> = html! {
         <input type="text",/>
@@ -204,6 +215,7 @@ fn it_compares_kinds() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_compares_checked() {
     let a: VNode<Comp> = html! {
         <input type="checkbox", checked=false,/>
@@ -222,6 +234,7 @@ fn it_compares_checked() {
 }
 
 #[test]
+#[wasm_helper::test]
 fn it_allows_aria_attributes() {
     let a: VNode<Comp> = html! {
         <p aria-controls="it-works",>

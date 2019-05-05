@@ -1,7 +1,9 @@
 extern crate yew;
 
-use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
+mod wasm_helper;
+
 use yew::virtual_dom::VNode;
+use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 struct Comp;
 
@@ -25,9 +27,9 @@ impl Renderable<Comp> for Comp {
 }
 
 #[test]
+#[wasm_helper::test]
 fn text_as_root() {
     let _: VNode<Comp> = html! {
         { "Text Node As Root" }
     };
 }
-
