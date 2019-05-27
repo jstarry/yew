@@ -12,3 +12,6 @@ bincode = "=1.0.1"
 anymap = "0.12"
 slab = "0.4"
 stdweb = "^0.4.14"
+
+[target.'cfg(all(target_arch = "wasm32", not(cargo_web)))'.dependencies]
+wasm-bindgen = "0.2"
