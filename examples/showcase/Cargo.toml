@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-web_logger = "0.1"
+web_logger = "0.2"
 strum = "0.13"
 strum_macros = "0.13"
 yew = { path = "../.." }
@@ -25,3 +25,6 @@ textarea = { path = "../textarea" }
 timer = { path = "../timer" }
 todomvc = { path = "../todomvc" }
 two_apps = { path = "../two_apps" }
+
+[target.'cfg(all(target_arch = "wasm32", not(cargo_web)))'.dependencies]
+wasm-bindgen = "0.2"
