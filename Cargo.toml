@@ -33,16 +33,20 @@ serde_cbor = { version = "0.9.0", optional = true }
 serde_json = "1.0"
 serde_yaml = { version = "0.8.3", optional = true }
 slab = "0.4"
-stdweb = "0.4.20"
 toml = { version = "0.4", optional = true }
 yew-macro = { version = "0.10.1", path = "crates/macro" }
 
-[target.'cfg(all(target_arch = "wasm32", not(cargo_web)))'.dependencies]
+[target.'cfg(all(not(target_os = "emscripten"), not(cargo_web)))'.dependencies]
+js-sys = "0.3"
 wasm-bindgen = "0.2.54"
 wasm-bindgen-futures = "0.4.4"
+web-sys = { version = "0.3", features = [
+  "MessageEvent",
+  "Worker",
+]}
 
-[target.'cfg(all(target_arch = "wasm32", not(cargo_web)))'.dev-dependencies]
-wasm-bindgen-test = "0.3.4"
+[target.'cfg(any(target_os = "emscripten", cargo_web))'.dependencies]
+stdweb = "0.4.20"
 
 [target.'cfg(target_os = "emscripten")'.dependencies]
 ryu = "=1.0.0" # 1.0.1 breaks emscripten
@@ -51,6 +55,9 @@ ryu = "=1.0.0" # 1.0.1 breaks emscripten
 serde_derive = "1"
 trybuild = "1.0"
 rustversion = "0.1"
+
+[target.'cfg(all(not(target_os = "emscripten"), not(cargo_web)))'.dev-dependencies]
+wasm-bindgen-test = "0.3.4"
 
 [features]
 default = ["services", "agent"]
