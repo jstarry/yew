@@ -1,10 +1,17 @@
 use super::*;
 use crate::virtual_dom::Listener;
-use stdweb::web::html_element::SelectElement;
-#[allow(unused_imports)]
-use stdweb::web::{EventListenerHandle, FileList, INode};
-#[allow(unused_imports)]
-use stdweb::{_js_impl, js};
+
+cfg_if::cfg_if! {
+    if #[cfg(stdweb)] {
+        use stdweb::web::html_element::SelectElement;
+        #[allow(unused_imports)]
+        use stdweb::web::{Element, EventListenerHandle, FileList, INode, Node};
+        #[allow(unused_imports)]
+        use stdweb::{_js_impl, js};
+    } else if #[cfg(wasm_bindgen)] {
+        use web_sys::{Element, FileList, Node, HtmlSelectElement as SelectElement};
+    }
+}
 
 macro_rules! impl_action {
     ($($action:ident($event:ident : $type:ident) -> $ret:ty => $convert:expr)*) => {$(

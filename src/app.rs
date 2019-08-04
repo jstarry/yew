@@ -2,7 +2,18 @@
 //! a component in an isolated scope.
 
 use crate::html::{Component, NodeRef, Scope};
-use stdweb::web::{document, Element, INode, IParentNode};
+
+cfg_if::cfg_if! {
+    if #[cfg(stdweb)] {
+        use stdweb::web::{document, Element, INode, IParentNode};
+    } else if #[cfg(wasm_bindgen)] {
+        use web_sys::{Document, Element};
+
+        fn document() -> Document {
+            Document::new().unwrap()
+        }
+    }
+}
 
 /// An application instance.
 #[derive(Debug)]
@@ -55,15 +66,16 @@ where
     /// need to manipulate the body element. For example, adding/removing app-wide
     /// CSS classes of the body element.
     pub fn mount_as_body(self) -> Scope<COMP> {
-        let html_element = document()
+        let document = document();
+        let html_element = document
             .query_selector("html")
             .expect("can't get html node for rendering")
             .expect("can't unwrap html node");
-        let body_element = document()
+        let body_element = document
             .query_selector("body")
             .expect("can't get body node for rendering")
             .expect("can't unwrap body node");
-        html_element
+        &html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
         self.scope.mount_in_place(

@@ -1,20 +1,24 @@
 //! This module contains the implementation of reactive virtual dom concept.
 
-pub mod vcomp;
-pub mod vlist;
+// pub mod vcomp;
+// pub mod vlist;
 pub mod vnode;
-pub mod vtag;
+// pub mod vtag;
 pub mod vtext;
 
 use indexmap::set::IndexSet;
 use std::collections::HashMap;
 use std::fmt;
-use stdweb::web::{Element, EventListenerHandle, Node};
 
-pub use self::vcomp::{VChild, VComp};
-pub use self::vlist::VList;
+#[cfg(stdweb)]
+use stdweb::web::{Element, EventListenerHandle as EventListener, Node};
+#[cfg(wasm_bindgen)]
+use web_sys::{Element, EventListener, Node};
+
+// pub use self::vcomp::{VChild, VComp};
+// pub use self::vlist::VList;
 pub use self::vnode::VNode;
-pub use self::vtag::VTag;
+// pub use self::vtag::VTag;
 pub use self::vtext::VText;
 use crate::html::{Component, Scope};
 
@@ -25,7 +29,7 @@ pub trait Listener<COMP: Component> {
     fn kind(&self) -> &'static str;
     /// Attaches listener to the element and uses scope instance to send
     /// prepared event back to the yew main loop.
-    fn attach(&mut self, element: &Element, scope: Scope<COMP>) -> EventListenerHandle;
+    fn attach(&mut self, element: &Element, scope: Scope<COMP>) -> EventListener;
 }
 
 impl<COMP: Component> fmt::Debug for dyn Listener<COMP> {

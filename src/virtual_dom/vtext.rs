@@ -6,16 +6,27 @@ use log::warn;
 use std::cmp::PartialEq;
 use std::fmt;
 use std::marker::PhantomData;
-use stdweb::web::{document, Element, INode, Node, TextNode};
+
+cfg_if::cfg_if! {
+    if #[cfg(stdweb)] {
+        use stdweb::web::{document, Element, INode, Node, TextNode as Text};
+    } else if #[cfg(wasm_bindgen)] {
+        use web_sys::{Document, Element, Node, Text};
+
+        fn document() -> Document {
+            Document::new().unwrap()
+        }
+    }
+}
 
 /// A type for a virtual
-/// [`TextNode`](https://developer.mozilla.org/en-US/docs/Web/API/Document/createTextNode)
+/// [`Text`](https://developer.mozilla.org/en-US/docs/Web/API/Document/createTextNode) node
 /// representation.
 pub struct VText<COMP: Component> {
     /// Contains a text of the node.
     pub text: String,
-    /// A reference to the `TextNode`.
-    pub reference: Option<TextNode>,
+    /// A reference to the `Text` node.
+    pub reference: Option<Text>,
     _comp: PhantomData<COMP>,
 }
 
@@ -46,7 +57,7 @@ impl<COMP: Component> VDiff for VText<COMP> {
         sibling
     }
 
-    /// Renders virtual node over existing `TextNode`, but only if value of text had changed.
+    /// Renders virtual node over existing `Text` node, but only if value of text had changed.
     fn apply(
         &mut self,
         parent: &Element,
@@ -81,23 +92,30 @@ impl<COMP: Component> VDiff for VText<COMP> {
             Reform::Keep => {}
             Reform::Before(ancestor) => {
                 let element = document().create_text_node(&self.text);
-                if let Some(ancestor) = ancestor {
-                    parent
+                #[cfg(stdweb)]
+                {
+                    if let Some(ancestor) = ancestor {
+                        parent
                         .insert_before(&element, &ancestor)
                         .expect("can't insert text before ancestor");
-                } else if let Some(next_sibling) =
+                    } else if let Some(next_sibling) =
                     previous_sibling.and_then(|previous_sibling| previous_sibling.next_sibling())
-                {
-                    parent
+                    {
+                        parent
                         .insert_before(&element, &next_sibling)
                         .expect("can't insert text before next_sibling");
-                } else {
-                    parent.append_child(&element);
+                    } else {
+                        parent.append_child(&element);
+                    }
                 }
+                #[cfg(wasm_bindgen)]
+                parent
+                .insert_before(&element, node.as_ref())
+                .expect("can't insert text before sibling");
                 self.reference = Some(element);
             }
         }
-        self.reference.as_ref().map(|t| t.as_node().to_owned())
+        self.reference.as_ref().map(|t| t.to_owned().into())
     }
 }
 

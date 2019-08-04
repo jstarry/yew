@@ -5,5 +5,7 @@ pub fn main() {
     let cargo_web = env::var("COMPILING_UNDER_CARGO_WEB").unwrap_or_default();
     if target_os == "emscripten" || cargo_web == "1" {
         println!("cargo:rustc-cfg=stdweb");
+    } else {
+        println!("cargo:rustc-cfg=wasm_bindgen");
     }
 }

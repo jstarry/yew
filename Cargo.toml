@@ -21,6 +21,7 @@ travis-ci = { repository = "yewstack/yew" }
 [dependencies]
 anymap = "0.12"
 bincode = "=1.0.1"
+cfg-if = "0.1"
 failure = "0.1"
 http = "0.1"
 indexmap = "1.0.2"
@@ -41,11 +42,29 @@ js-sys = "0.3"
 wasm-bindgen = "0.2.54"
 wasm-bindgen-futures = "0.4.4"
 web-sys = { version = "0.3", features = [
+  "Document",
+  "DragEvent",
+  "Element",
+  "Event",
+  "EventListener",
+  "EventTarget",
+  "FileList",
+  "FocusEvent",
+  "HtmlInputElement",
+  "HtmlSelectElement",
+  "HtmlTextAreaElement",
+  "InputEvent",
+  "KeyboardEvent",
   "MessageEvent",
+  "MouseEvent",
+  "Node",
+  "PointerEvent",
+  "Text",
   "Worker",
 ]}
 
 [target.'cfg(any(target_os = "emscripten", cargo_web))'.dependencies]
+paste = "0.1"
 stdweb = "0.4.20"
 
 [target.'cfg(target_os = "emscripten")'.dependencies]
