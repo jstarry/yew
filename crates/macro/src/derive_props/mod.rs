@@ -1,7 +1,7 @@
 mod builder;
 mod field;
 mod generics;
-mod wrapped;
+mod wrapper;
 
 use builder::PropsBuilder;
 use field::PropField;
@@ -10,7 +10,7 @@ use quote::{quote, ToTokens};
 use std::convert::TryInto;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{DeriveInput, Generics, Visibility};
-use wrapped::WrappedProps;
+use wrapper::PropsWrapper;
 
 pub struct DerivePropsInput {
     vis: Visibility,
@@ -56,18 +56,19 @@ impl ToTokens for DerivePropsInput {
             ..
         } = self;
 
-        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-        let wrapped_props_name = Ident::new(&format!("Wrapped{}", props_name), Span::call_site());
-        let wrapped_props = WrappedProps::new(&wrapped_props_name, &generics, &prop_fields);
+        let wrapper_name = Ident::new(&format!("{}Wrapper", props_name), Span::call_site());
+        let wrapper = PropsWrapper::new(&wrapper_name, &generics, &prop_fields);
+        // tokens.extend(wrapper.into_token_stream());
 
         let builder_name = Ident::new(&format!("{}Builder", props_name), Span::call_site());
         let builder_step = Ident::new(&format!("{}BuilderStep", props_name), Span::call_site());
-        let builder = PropsBuilder::new(&builder_name, &builder_step, &self, &wrapped_props_name);
+        let builder = PropsBuilder::new(&builder_name, &builder_step, &self, &wrapper_name);
         let builder_ty_generics = builder.to_ty_generics();
+        tokens.extend(builder.into_token_stream());
 
-        let impl_properties = quote! {
-            impl#impl_generics ::yew::html::Properties for #props_name<#ty_generics> #where_clause {
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+        let properties = quote! {
+            impl#impl_generics ::yew::html::Properties for #props_name#ty_generics #where_clause {
                 type Builder = #builder_name#builder_ty_generics;
 
                 fn builder() -> Self::Builder {
@@ -78,11 +79,6 @@ impl ToTokens for DerivePropsInput {
                 }
             }
         };
-
-        wrapped_props.to_tokens(tokens);
-        builder.to_tokens(tokens);
-        impl_properties.to_tokens(tokens);
+        tokens.extend(properties);
     }
 }
-
-impl DerivePropsInput {}

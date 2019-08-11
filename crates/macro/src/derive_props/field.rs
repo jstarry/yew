@@ -1,37 +1,18 @@
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
 use std::convert::TryFrom;
 use syn::parse::Result;
 use syn::punctuated;
 use syn::spanned::Spanned;
-use syn::{Error, Field, Generics, Meta, MetaList, NestedMeta, Type, Visibility};
+use syn::{Error, Field, Meta, MetaList, NestedMeta, Type, TypeGenerics, Visibility};
 
+#[derive(Eq)]
 pub struct PropField {
     ty: Type,
     name: Ident,
     wrapped_name: Option<Ident>,
 }
-
-impl PartialOrd for PropField {
-    fn partial_cmp(&self, other: &PropField) -> Option<Ordering> {
-        self.name.partial_cmp(&other.name)
-    }
-}
-
-impl Ord for PropField {
-    fn cmp(&self, other: &PropField) -> Ordering {
-        self.name.cmp(&other.name)
-    }
-}
-
-impl PartialEq for PropField {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl Eq for PropField {}
 
 impl TryFrom<Field> for PropField {
     type Error = Error;
@@ -100,18 +81,18 @@ impl PropField {
     pub fn to_fn(
         &self,
         builder_name: &Ident,
-        generics: &Generics,
+        ty_generics: &TypeGenerics,
         vis: &Visibility,
     ) -> proc_macro2::TokenStream {
         let Self {
             name,
             ty,
             wrapped_name,
-        } = &self;
-        if let Some(wrapped_name) = &wrapped_name {
+        } = self;
+        if let Some(wrapped_name) = wrapped_name {
             quote! {
                 #[doc(hidden)]
-                #vis fn #name(mut self, #name: #ty) -> #builder_name#generics {
+                #vis fn #name(mut self, #name: #ty) -> #builder_name#ty_generics {
                     self.wrapped.#wrapped_name = ::std::option::Option::Some(#name);
                     #builder_name {
                         wrapped: self.wrapped,
@@ -122,7 +103,7 @@ impl PropField {
         } else {
             quote! {
                 #[doc(hidden)]
-                #vis fn #name(mut self, #name: #ty) -> #builder_name#generics {
+                #vis fn #name(mut self, #name: #ty) -> #builder_name#ty_generics {
                     self.wrapped.#name = #name;
                     self
                 }
@@ -177,5 +158,23 @@ impl PropField {
         } else {
             None
         }
+    }
+}
+
+impl PartialOrd for PropField {
+    fn partial_cmp(&self, other: &PropField) -> Option<Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Ord for PropField {
+    fn cmp(&self, other: &PropField) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialEq for PropField {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }

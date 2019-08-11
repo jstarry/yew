@@ -10,7 +10,7 @@ pub struct PropsBuilder<'a> {
     step_trait: &'a Ident,
     step_names: Vec<Ident>,
     props: &'a DerivePropsInput,
-    wrapped_props_name: &'a Ident,
+    wrapper_name: &'a Ident,
 }
 
 impl ToTokens for PropsBuilder<'_> {
@@ -20,7 +20,7 @@ impl ToTokens for PropsBuilder<'_> {
             step_trait,
             step_names,
             props,
-            wrapped_props_name,
+            wrapper_name,
         } = self;
 
         let DerivePropsInput {
@@ -29,10 +29,9 @@ impl ToTokens for PropsBuilder<'_> {
             props_name,
             ..
         } = props;
-        let (_, ty_generics, where_clause) = generics.split_for_impl();
+        let (_, ty_generics, _) = generics.split_for_impl();
         let turbofish_generics = ty_generics.as_turbofish();
 
-        let start_step = self.first_step();
         let build_step = self.build_step();
         let step_trait_repeat = iter::repeat(step_trait);
         let vis_repeat = iter::repeat(&vis);
@@ -42,7 +41,7 @@ impl ToTokens for PropsBuilder<'_> {
 
         let step_generic_param = Ident::new("YEW_PROPS_BUILDER_STEP", Span::call_site());
         let build_step_generics =
-            with_param_bounds(&generics, step_generic_param, step_trait.clone().to_owned());
+            with_param_bounds(&generics, step_generic_param, build_step.clone());
         let (impl_build_step_generics, build_step_ty_generics, build_step_where_clause) =
             build_step_generics.split_for_impl();
 
@@ -58,8 +57,8 @@ impl ToTokens for PropsBuilder<'_> {
             #(impl #step_trait_repeat for #step_names {})*
 
             #[doc(hidden)]
-            #vis struct #builder_name#ty_generics #where_clause {
-                wrapped: ::std::boxed::Box<#wrapped_props_name#ty_generics>,
+            #vis struct #builder_name#generics {
+                wrapped: ::std::boxed::Box<#wrapper_name#ty_generics>,
                 _marker: ::std::marker::PhantomData<step_generic_param>,
             }
 
@@ -67,7 +66,7 @@ impl ToTokens for PropsBuilder<'_> {
 
             impl#impl_build_step_generics #builder_name#build_step_ty_generics #build_step_where_clause {
                 #[doc(hidden)]
-                #vis fn build(self) -> #props_name#generics {
+                #vis fn build(self) -> #props_name#ty_generics {
                     #props_name#turbofish_generics {
                         #(#set_fields)*
                     }
@@ -75,7 +74,7 @@ impl ToTokens for PropsBuilder<'_> {
             }
         };
 
-        builder.to_tokens(tokens);
+        tokens.extend(builder);
     }
 }
 
@@ -84,14 +83,14 @@ impl<'a> PropsBuilder<'_> {
         name: &'a Ident,
         step_trait: &'a Ident,
         props: &'a DerivePropsInput,
-        wrapped_props_name: &'a Ident,
+        wrapper_name: &'a Ident,
     ) -> PropsBuilder<'a> {
         PropsBuilder {
             builder_name: name,
             step_trait,
             step_names: Self::step_names(&props.props_name, &props.prop_fields),
             props,
-            wrapped_props_name,
+            wrapper_name,
         }
     }
 }
@@ -142,14 +141,13 @@ impl PropsBuilder<'_> {
             prop_fields,
             ..
         } = props;
-        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-        let mut required_field = None;
         let mut fields_index = 0;
         let mut token_stream = proc_macro2::TokenStream::new();
 
         for (step, step_name) in step_names.iter().enumerate() {
             let mut optional_fields = Vec::new();
+            let mut required_field = None;
 
             if fields_index >= prop_fields.len() {
                 break;
@@ -166,18 +164,20 @@ impl PropsBuilder<'_> {
             }
 
             let current_step_generics = with_param(generics, step_name.clone());
+            let (impl_step_generics, step_ty_generics, step_where_clause) =
+                current_step_generics.split_for_impl();
             let optional_prop_fn = optional_fields
                 .iter()
-                .map(|pf| pf.to_fn(builder_name, &current_step_generics, vis));
-
-            let next_step_name = &step_names[step + 1];
-            let next_step_generics = with_param(generics, next_step_name.clone());
-            let required_prop_fn = required_field
-                .iter()
-                .map(|pf| pf.to_fn(builder_name, &next_step_generics, vis));
+                .map(|pf| pf.to_fn(builder_name, &step_ty_generics, vis));
+            let required_prop_fn = required_field.iter().map(|pf| {
+                let next_step_name = &step_names[step + 1];
+                let next_step_generics = with_param(generics, next_step_name.clone());
+                let (_, next_step_ty_generics, _) = next_step_generics.split_for_impl();
+                pf.to_fn(builder_name, &next_step_ty_generics, vis)
+            });
 
             token_stream.extend(quote! {
-                impl#impl_generics #builder_name#current_step_generics #where_clause {
+                impl#impl_step_generics #builder_name#step_ty_generics #step_where_clause {
                     #(#optional_prop_fn)*
                     #(#required_prop_fn)*
                 }

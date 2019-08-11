@@ -8,13 +8,13 @@ pub fn with_param_bounds(generics: &Generics, param_ident: Ident, param_bounds: 
     let mut new_generics = generics.clone();
     new_generics
         .params
-        .push_value(new_param_bounds(param_ident, param_bounds));
+        .push(new_param_bounds(param_ident, param_bounds));
     new_generics
 }
 
 pub fn with_param(generics: &Generics, param_ident: Ident) -> Generics {
     let mut new_generics = generics.clone();
-    new_generics.params.push_value(new_param(param_ident));
+    new_generics.params.push(new_param(param_ident));
     new_generics
 }
 
@@ -31,13 +31,13 @@ fn new_param(param_ident: Ident) -> GenericParam {
 
 fn new_param_bounds(param_ident: Ident, param_bounds: Ident) -> GenericParam {
     let mut path_segments: Punctuated<PathSegment, Colon2> = Punctuated::new();
-    path_segments.push_value(PathSegment {
+    path_segments.push(PathSegment {
         ident: param_bounds,
         arguments: PathArguments::None,
     });
 
     let mut param_bounds: Punctuated<TypeParamBound, Token![+]> = Punctuated::new();
-    param_bounds.push_value(TypeParamBound::Trait(TraitBound {
+    param_bounds.push(TypeParamBound::Trait(TraitBound {
         paren_token: None,
         modifier: TraitBoundModifier::None,
         lifetimes: None,
