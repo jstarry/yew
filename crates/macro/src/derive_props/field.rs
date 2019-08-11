@@ -1,3 +1,4 @@
+use super::generics::GenericArguments;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
@@ -5,7 +6,7 @@ use std::convert::TryFrom;
 use syn::parse::Result;
 use syn::punctuated;
 use syn::spanned::Spanned;
-use syn::{Error, Field, Meta, MetaList, NestedMeta, Type, TypeGenerics, Visibility};
+use syn::{Error, Field, Meta, MetaList, NestedMeta, Type, Visibility};
 
 #[derive(Eq)]
 pub struct PropField {
@@ -68,12 +69,12 @@ impl PropField {
     pub fn to_default_setter(&self) -> proc_macro2::TokenStream {
         if let Some(wrapped_name) = &self.wrapped_name {
             quote! {
-                #wrapped_name: ::std::default::Default::default(),
+                #wrapped_name: ::std::default::Default::default().into(),
             }
         } else {
             let name = &self.name;
             quote! {
-                #name: ::std::default::Default::default(),
+                #name: ::std::default::Default::default().into(),
             }
         }
     }
@@ -81,7 +82,7 @@ impl PropField {
     pub fn to_fn(
         &self,
         builder_name: &Ident,
-        ty_generics: &TypeGenerics,
+        generic_arguments: &GenericArguments,
         vis: &Visibility,
     ) -> proc_macro2::TokenStream {
         let Self {
@@ -92,7 +93,7 @@ impl PropField {
         if let Some(wrapped_name) = wrapped_name {
             quote! {
                 #[doc(hidden)]
-                #vis fn #name(mut self, #name: #ty) -> #builder_name#ty_generics {
+                #vis fn #name(mut self, #name: #ty) -> #builder_name<#generic_arguments> {
                     self.wrapped.#wrapped_name = ::std::option::Option::Some(#name);
                     #builder_name {
                         wrapped: self.wrapped,
@@ -103,7 +104,7 @@ impl PropField {
         } else {
             quote! {
                 #[doc(hidden)]
-                #vis fn #name(mut self, #name: #ty) -> #builder_name#ty_generics {
+                #vis fn #name(mut self, #name: #ty) -> #builder_name<#generic_arguments> {
                     self.wrapped.#name = #name;
                     self
                 }

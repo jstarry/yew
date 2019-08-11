@@ -24,11 +24,11 @@ impl ToTokens for PropsWrapper<'_> {
         let wrapper_default_setters = self.default_setters();
 
         let wrapper = quote! {
-            struct #wrapper_name<#ty_generics> {
+            struct #wrapper_name#generics {
                 #(#wrapper_field_defs)*
             }
 
-            impl#impl_generics ::std::default::Default for #wrapper_name<#ty_generics> #where_clause {
+            impl#impl_generics ::std::default::Default for #wrapper_name#ty_generics #where_clause {
                 fn default() -> Self {
                     #wrapper_name#turbofish_generics {
                         #(#wrapper_default_setters)*
