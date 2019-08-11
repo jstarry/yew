@@ -1,0 +1,181 @@
+use proc_macro2::{Ident, Span};
+use quote::quote;
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::convert::TryFrom;
+use syn::parse::Result;
+use syn::punctuated;
+use syn::spanned::Spanned;
+use syn::{Error, Field, Generics, Meta, MetaList, NestedMeta, Type, Visibility};
+
+pub struct PropField {
+    ty: Type,
+    name: Ident,
+    wrapped_name: Option<Ident>,
+}
+
+impl PartialOrd for PropField {
+    fn partial_cmp(&self, other: &PropField) -> Option<Ordering> {
+        self.name.partial_cmp(&other.name)
+    }
+}
+
+impl Ord for PropField {
+    fn cmp(&self, other: &PropField) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialEq for PropField {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for PropField {}
+
+impl TryFrom<Field> for PropField {
+    type Error = Error;
+
+    fn try_from(field: Field) -> Result<Self> {
+        Ok(PropField {
+            wrapped_name: Self::required_wrapper(&field)?,
+            ty: field.ty,
+            name: field.ident.unwrap(),
+        })
+    }
+}
+
+impl PropField {
+    pub fn is_required(&self) -> bool {
+        self.wrapped_name.is_some()
+    }
+
+    pub fn to_step_name(&self, props_name: &Ident) -> Ident {
+        Ident::new(
+            &format!("{}_missing_required_prop_{}", props_name, self.name),
+            Span::call_site(),
+        )
+    }
+
+    pub fn to_field_setter(&self) -> proc_macro2::TokenStream {
+        let name = &self.name;
+        if let Some(wrapped_name) = &self.wrapped_name {
+            quote! {
+                #name: self.wrapped.#wrapped_name.unwrap(),
+            }
+        } else {
+            quote! {
+                #name: self.wrapped.#name,
+            }
+        }
+    }
+
+    pub fn to_field_def(&self) -> proc_macro2::TokenStream {
+        let ty = &self.ty;
+        if let Some(wrapped_name) = &self.wrapped_name {
+            quote! {
+                #wrapped_name: ::std::option::Option<#ty>,
+            }
+        } else {
+            let name = &self.name;
+            quote! {
+                #name: #ty,
+            }
+        }
+    }
+
+    pub fn to_default_setter(&self) -> proc_macro2::TokenStream {
+        if let Some(wrapped_name) = &self.wrapped_name {
+            quote! {
+                #wrapped_name: ::std::default::Default::default(),
+            }
+        } else {
+            let name = &self.name;
+            quote! {
+                #name: ::std::default::Default::default(),
+            }
+        }
+    }
+
+    pub fn to_fn(
+        &self,
+        builder_name: &Ident,
+        generics: &Generics,
+        vis: &Visibility,
+    ) -> proc_macro2::TokenStream {
+        let Self {
+            name,
+            ty,
+            wrapped_name,
+        } = &self;
+        if let Some(wrapped_name) = &wrapped_name {
+            quote! {
+                #[doc(hidden)]
+                #vis fn #name(mut self, #name: #ty) -> #builder_name#generics {
+                    self.wrapped.#wrapped_name = ::std::option::Option::Some(#name);
+                    #builder_name {
+                        wrapped: self.wrapped,
+                        _marker: ::std::marker::PhantomData,
+                    }
+                }
+            }
+        } else {
+            quote! {
+                #[doc(hidden)]
+                #vis fn #name(mut self, #name: #ty) -> #builder_name#generics {
+                    self.wrapped.#name = #name;
+                    self
+                }
+            }
+        }
+    }
+
+    fn required_wrapper(named_field: &syn::Field) -> Result<Option<Ident>> {
+        let meta_list = if let Some(meta_list) = Self::find_props_meta_list(named_field) {
+            meta_list
+        } else {
+            return Ok(None);
+        };
+
+        let expected_required = syn::Error::new(meta_list.span(), "expected `props(required)`");
+        let first_nested = if let Some(first_nested) = meta_list.nested.first() {
+            first_nested
+        } else {
+            return Err(expected_required);
+        };
+
+        let word_ident = match first_nested {
+            punctuated::Pair::End(NestedMeta::Meta(Meta::Word(ident))) => ident,
+            _ => return Err(expected_required),
+        };
+
+        if word_ident != "required" {
+            return Err(expected_required);
+        }
+
+        if let Some(ident) = &named_field.ident {
+            Ok(Some(Ident::new(
+                &format!("{}_wrapper", ident),
+                Span::call_site(),
+            )))
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn find_props_meta_list(field: &syn::Field) -> Option<MetaList> {
+        let meta_list = field
+            .attrs
+            .iter()
+            .find_map(|attr| match attr.parse_meta().ok()? {
+                Meta::List(meta_list) => Some(meta_list),
+                _ => None,
+            })?;
+
+        if meta_list.ident == "props" {
+            Some(meta_list)
+        } else {
+            None
+        }
+    }
+}
