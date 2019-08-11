@@ -69,12 +69,12 @@ impl PropField {
     pub fn to_default_setter(&self) -> proc_macro2::TokenStream {
         if let Some(wrapped_name) = &self.wrapped_name {
             quote! {
-                #wrapped_name: ::std::default::Default::default().into(),
+                #wrapped_name: ::std::default::Default::default(),
             }
         } else {
             let name = &self.name;
             quote! {
-                #name: ::std::default::Default::default().into(),
+                #name: ::std::default::Default::default(),
             }
         }
     }

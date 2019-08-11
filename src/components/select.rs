@@ -20,7 +20,7 @@ use crate::html::{ChangeData, Component, ComponentLink, Html, Renderable, Should
 use crate::macros::{html, Properties};
 
 /// `Select` component.
-pub struct Select<T: PartialEq + Clone + 'static> {
+pub struct Select<T> {
     props: Props<T>,
 }
 
@@ -30,16 +30,9 @@ pub enum Msg {
     Selected(Option<usize>),
 }
 
-#[derive(Properties)]
-pub struct LifetimeProps<'a, T: Default + 'a> {
-    value: &'a T,
-    #[props(required)]
-    required_value: &'a T,
-}
-
 /// Properties of `Select` component.
 #[derive(PartialEq, Properties)]
-pub struct Props<T: PartialEq + Clone + 'static> {
+pub struct Props<T> {
     /// Initially selected value.
     pub selected: Option<T>,
     /// Disabled the component's selector.
