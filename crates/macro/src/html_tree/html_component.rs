@@ -1,6 +1,6 @@
 use super::HtmlProp;
 use super::HtmlPropSuffix;
-use super::HtmlTree;
+use super::HtmlTreeNested;
 use crate::PeekValue;
 use boolinator::Boolinator;
 use proc_macro2::Span;
@@ -15,7 +15,7 @@ use syn::{Ident, Path, PathArguments, PathSegment, Token, Type, TypePath};
 pub struct HtmlComponent {
     ty: Type,
     props: Option<Props>,
-    children: Vec<HtmlTree>,
+    children: Vec<HtmlTreeNested>,
 }
 
 impl PeekValue<Type> for HtmlComponent {
@@ -50,7 +50,7 @@ impl Parse for HtmlComponent {
             });
         }
 
-        let mut children: Vec<HtmlTree> = vec![];
+        let mut children: Vec<HtmlTreeNested> = vec![];
         loop {
             if input.is_empty() {
                 return Err(syn::Error::new_spanned(
@@ -77,13 +77,14 @@ impl Parse for HtmlComponent {
     }
 }
 
-impl ToTokens for HtmlComponent {
+pub struct HtmlComponentNested<'a>(pub &'a HtmlComponent);
+impl ToTokens for HtmlComponentNested<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let Self {
+        let HtmlComponent {
             ty,
             props,
             children,
-        } = self;
+        } = self.0;
         let vcomp_scope = Ident::new("__yew_vcomp_scope", Span::call_site());
 
         let validate_props = if let Some(Props::List(ListProps(vec_props))) = props {
@@ -122,15 +123,7 @@ impl ToTokens for HtmlComponent {
 
         let set_children = if !children.is_empty() {
             quote! {
-                .children(::std::boxed::Box::new(move || {
-                    || -> ::yew::html::Html<#ty> {
-                        ::yew::virtual_dom::VNode::VList(
-                            ::yew::virtual_dom::vlist::VList {
-                                childs: vec![#(#children,)*],
-                            }
-                        )
-                    }
-                }()))
+                .children(vec![#(#children.into(),)*])
             }
         } else {
             quote! {}
@@ -179,9 +172,106 @@ impl ToTokens for HtmlComponent {
             }
 
             let #vcomp_scope: ::yew::virtual_dom::vcomp::ScopeHolder<_> = ::std::default::Default::default();
-            ::yew::virtual_dom::VNode::VComp(
-                ::yew::virtual_dom::VComp::new::<#ty>(#init_props, #vcomp_scope)
-            )
+            ::yew::virtual_dom::VChild { props: #init_props, scope: #vcomp_scope }
+        }});
+    }
+}
+
+impl ToTokens for HtmlComponent {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let Self {
+            ty,
+            props,
+            children,
+        } = self;
+        let vcomp_scope = Ident::new("__yew_vcomp_scope", Span::call_site());
+
+        let validate_props = if let Some(Props::List(ListProps(vec_props))) = props {
+            let prop_ref = Ident::new("__yew_prop_ref", Span::call_site());
+            let check_props = vec_props.iter().map(|HtmlProp { label, .. }| {
+                quote! { #prop_ref.#label; }
+            });
+
+            let check_children = if !children.is_empty() {
+                quote! { #prop_ref.children; }
+            } else {
+                quote! {}
+            };
+
+            // This is a hack to avoid allocating memory but still have a reference to a props
+            // struct so that attributes can be checked against it
+
+            #[cfg(has_maybe_uninit)]
+            let unallocated_prop_ref = quote! {
+                let #prop_ref: <#ty as ::yew::html::Component>::Properties = unsafe { ::std::mem::MaybeUninit::uninit().assume_init() };
+            };
+
+            #[cfg(not(has_maybe_uninit))]
+            let unallocated_prop_ref = quote! {
+                let #prop_ref: <#ty as ::yew::html::Component>::Properties = unsafe { ::std::mem::uninitialized() };
+            };
+
+            quote! {
+                #unallocated_prop_ref
+                #check_children
+                #(#check_props)*
+            }
+        } else {
+            quote! {}
+        };
+
+        let set_children = if !children.is_empty() {
+            quote! {
+                .children(vec![#(#children.into(),)*])
+            }
+        } else {
+            quote! {}
+        };
+
+        let init_props = if let Some(props) = props {
+            match props {
+                Props::List(ListProps(vec_props)) => {
+                    let set_props = vec_props.iter().map(|HtmlProp { label, value }| {
+                        quote_spanned! { value.span()=>
+                            .#label(<::yew::virtual_dom::vcomp::VComp<_> as ::yew::virtual_dom::vcomp::Transformer<_, _, _>>::transform(#vcomp_scope.clone(), #value))
+                        }
+                    });
+
+                    quote! {
+                        <<#ty as ::yew::html::Component>::Properties as ::yew::html::Properties>::builder()
+                            #(#set_props)*
+                            #set_children
+                            .build()
+                    }
+                }
+                Props::With(WithProps(props)) => quote! { #props },
+            }
+        } else {
+            quote! {
+                <<#ty as ::yew::html::Component>::Properties as ::yew::html::Properties>::builder()
+                    #set_children
+                    .build()
+            }
+        };
+
+        let validate_comp = quote_spanned! { ty.span()=>
+            trait __yew_validate_comp {
+                type C: ::yew::html::Component;
+            }
+            impl __yew_validate_comp for () {
+                type C = #ty;
+            }
+        };
+
+        tokens.extend(quote! {{
+            // Validation nevers executes at runtime
+            if false {
+                #validate_comp
+                #validate_props
+            }
+
+            let #vcomp_scope: ::yew::virtual_dom::vcomp::ScopeHolder<_> = ::std::default::Default::default();
+            ::yew::virtual_dom::VComp::new::<#ty>(#init_props, #vcomp_scope)
         }});
     }
 }

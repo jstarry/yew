@@ -6,10 +6,24 @@ pub struct Child {
 
 #[derive(Properties)]
 pub struct Props {
+    pub hide: bool,
     #[props(required)]
     pub on_click: Callback<()>,
     #[props(required)]
     pub name: String,
+    #[props(required)]
+    pub children: Vec<Html<Child>>,
+}
+
+impl Clone for Props {
+    fn clone(&self) -> Self {
+        Self {
+            hide: self.hide,
+            on_click: self.on_click.clone(),
+            name: self.name.clone(),
+            children: Vec::new(),
+        }
+    }
 }
 
 pub enum Msg {

@@ -25,6 +25,53 @@ enum GeneratorType {
 /// A reference to unknown scope which will be attached later with a generator function.
 pub type ScopeHolder<COMP> = Rc<RefCell<Option<Scope<COMP>>>>;
 
+/// A reference to unknown scope which will be attached later with a generator function.
+pub type PropsHolder<COMP> = Rc<RefCell<<COMP as Component>::Properties>>;
+
+// TODO think about making this a trait... then I could call getProps() instead.. and have an
+// associated type for PARENT so that devs don't have to htink about hte parent type
+
+/// A virtual child component .
+pub struct VChild<SELF: Component, PARENT: Component> {
+    /// The component properties
+    pub props: SELF::Properties,
+    /// The component scope
+    pub scope: ScopeHolder<PARENT>,
+}
+
+impl<SELF, PARENT> VChild<SELF, PARENT>
+where
+    SELF: Component,
+    PARENT: Component,
+{
+    /// This method prepares a generator to make a new instance of the `Component`.
+    pub fn new(props: SELF::Properties, scope: ScopeHolder<PARENT>) -> Self {
+        Self { props, scope }
+    }
+}
+
+impl<COMP, CHILD> From<&VChild<CHILD, COMP>> for VComp<COMP>
+where
+    COMP: Component,
+    CHILD: Component + Renderable<CHILD>,
+    CHILD::Properties: Clone,
+{
+    fn from(vchild: &VChild<CHILD, COMP>) -> Self {
+        VComp::new::<CHILD>(vchild.props.clone(), vchild.scope.clone())
+    }
+}
+
+impl<COMP, CHILD> From<VChild<CHILD, COMP>> for VComp<COMP>
+where
+    COMP: Component,
+    CHILD: Component + Renderable<CHILD>,
+    CHILD::Properties: Clone,
+{
+    fn from(vchild: VChild<CHILD, COMP>) -> Self {
+        VComp::new::<CHILD>(vchild.props, vchild.scope)
+    }
+}
+
 /// A virtual component.
 pub struct VComp<COMP: Component> {
     type_id: TypeId,

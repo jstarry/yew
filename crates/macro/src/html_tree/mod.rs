@@ -9,7 +9,7 @@ pub mod html_tag;
 
 use crate::PeekValue;
 use html_block::HtmlBlock;
-use html_component::HtmlComponent;
+use html_component::{HtmlComponent, HtmlComponentNested};
 use html_dashed_name::HtmlDashedName;
 use html_iterable::HtmlIterable;
 use html_list::HtmlList;
@@ -18,7 +18,7 @@ use html_prop::HtmlProp;
 use html_prop::HtmlPropSuffix;
 use html_tag::HtmlTag;
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use syn::buffer::Cursor;
 use syn::parse::{Parse, ParseStream, Result};
 
@@ -106,16 +106,37 @@ impl PeekValue<HtmlType> for HtmlTree {
 impl ToTokens for HtmlTree {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let empty_html_el = HtmlList(Vec::new());
-        let html_tree_el: &dyn ToTokens = match self {
-            HtmlTree::Empty => &empty_html_el,
-            HtmlTree::Component(comp) => comp,
-            HtmlTree::Tag(tag) => tag,
-            HtmlTree::List(list) => list,
-            HtmlTree::Node(node) => node,
-            HtmlTree::Iterable(iterable) => iterable,
-            HtmlTree::Block(block) => block,
+        let html_tree = match self {
+            HtmlTree::Empty => quote! { ::yew::virtual_dom::VNode::VList(#empty_html_el) },
+            HtmlTree::Component(comp) => quote! { ::yew::virtual_dom::VNode::VComp(#comp) },
+            HtmlTree::Tag(tag) => quote! { ::yew::virtual_dom::VNode::VTag(#tag) },
+            HtmlTree::List(list) => quote! { ::yew::virtual_dom::VNode::VList(#list) },
+            HtmlTree::Node(node) => quote! { ::yew::virtual_dom::VNode::from(#node) },
+            HtmlTree::Iterable(iterable) => quote! { ::yew::virtual_dom::VNode::from(#iterable) },
+            HtmlTree::Block(block) => quote! { ::yew::virtual_dom::VNode::from(#block) },
         };
 
-        html_tree_el.to_tokens(tokens);
+        tokens.extend(html_tree);
+    }
+}
+
+pub struct HtmlTreeNested(HtmlTree);
+impl Parse for HtmlTreeNested {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(HtmlTreeNested(HtmlTree::parse(input)?))
+    }
+}
+
+impl ToTokens for HtmlTreeNested {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match &self.0 {
+            HtmlTree::Empty => HtmlList(Vec::new()).to_tokens(tokens),
+            HtmlTree::Component(comp) => HtmlComponentNested(comp).to_tokens(tokens),
+            HtmlTree::Tag(tag) => tag.to_tokens(tokens),
+            HtmlTree::List(list) => list.to_tokens(tokens),
+            HtmlTree::Node(node) => node.to_tokens(tokens),
+            HtmlTree::Iterable(iterable) => iterable.to_tokens(tokens),
+            HtmlTree::Block(block) => block.to_tokens(tokens),
+        };
     }
 }
