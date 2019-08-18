@@ -50,22 +50,10 @@ where
     }
 }
 
-impl<COMP, CHILD> From<&VChild<CHILD, COMP>> for VComp<COMP>
-where
-    COMP: Component,
-    CHILD: Component + Renderable<CHILD>,
-    CHILD::Properties: Clone,
-{
-    fn from(vchild: &VChild<CHILD, COMP>) -> Self {
-        VComp::new::<CHILD>(vchild.props.clone(), vchild.scope.clone())
-    }
-}
-
 impl<COMP, CHILD> From<VChild<CHILD, COMP>> for VComp<COMP>
 where
     COMP: Component,
     CHILD: Component + Renderable<CHILD>,
-    CHILD::Properties: Clone,
 {
     fn from(vchild: VChild<CHILD, COMP>) -> Self {
         VComp::new::<CHILD>(vchild.props, vchild.scope)

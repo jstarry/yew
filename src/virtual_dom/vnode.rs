@@ -99,20 +99,8 @@ impl<COMP, CHILD> From<VChild<CHILD, COMP>> for VNode<COMP>
 where
     COMP: Component,
     CHILD: Component + Renderable<CHILD>,
-    CHILD::Properties: Clone,
 {
     fn from(vchild: VChild<CHILD, COMP>) -> Self {
-        VNode::VComp(VComp::from(vchild))
-    }
-}
-
-impl<COMP, CHILD> From<&VChild<CHILD, COMP>> for VNode<COMP>
-where
-    COMP: Component,
-    CHILD: Component + Renderable<CHILD>,
-    CHILD::Properties: Clone,
-{
-    fn from(vchild: &VChild<CHILD, COMP>) -> Self {
         VNode::VComp(VComp::from(vchild))
     }
 }

@@ -26,10 +26,10 @@ impl Renderable<Model> for Model {
         html! {
             <Parent>
                 <Child hide={true} name="Rusty" on_click=|_| ParentMsg::ChildClick>
-                    <span>{"Rusty says hi"}</span>
+                    <p>{"Rusty says hi"}</p>
                 </Child>
                 <Child name="Rustifer" on_click=|_| ParentMsg::ChildClick>
-                    <span>{"Rustifer says hello"}</span>
+                    <p>{"Rustifer says hello"}</p>
                 </Child>
             </Parent>
         }

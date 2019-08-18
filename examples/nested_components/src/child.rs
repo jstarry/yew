@@ -4,6 +4,8 @@ pub struct Child {
     props: Props,
 }
 
+type Children<T> = Box<dyn Fn() -> Vec<Html<T>>>;
+
 #[derive(Properties)]
 pub struct Props {
     pub hide: bool,
@@ -12,18 +14,7 @@ pub struct Props {
     #[props(required)]
     pub name: String,
     #[props(required)]
-    pub children: Vec<Html<Child>>,
-}
-
-impl Clone for Props {
-    fn clone(&self) -> Self {
-        Self {
-            hide: self.hide,
-            on_click: self.on_click.clone(),
-            name: self.name.clone(),
-            children: Vec::new(),
-        }
-    }
+    pub children: Children<Child>,
 }
 
 pub enum Msg {
@@ -53,6 +44,7 @@ impl Renderable<Child> for Child {
         html! {
             <div class="child">
                 { format!("My name is {}", self.props.name) }
+                { for (self.props.children)().into_iter() }
                 <button onclick=|_| Msg::Click>
                     { "Child button" }
                 </button>

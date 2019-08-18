@@ -7,7 +7,7 @@ pub enum Msg {
     ChildClick,
 }
 
-type Children<T> = Vec<VChild<T, Parent>>;
+type Children<T> = Box<dyn Fn() -> Vec<VChild<T, Parent>>>;
 
 #[derive(Properties)]
 pub struct Props {
@@ -46,7 +46,7 @@ impl Renderable<Parent> for Parent {
             <div class="parent">
                 { format!("Last clicked by {}", self.clicker) }
                 <button onclick=|_| Msg::Click>{"Parent button"}</button>
-                { for self.props.children.iter().filter(|c| !c.props.hide) }
+                { for (self.props.children)().into_iter().filter(|c| !c.props.hide) }
             </div>
         }
     }
