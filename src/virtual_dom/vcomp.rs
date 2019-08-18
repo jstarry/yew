@@ -36,7 +36,7 @@ pub struct VChild<SELF: Component, PARENT: Component> {
     /// The component properties
     pub props: SELF::Properties,
     /// The component scope
-    pub scope: ScopeHolder<PARENT>,
+    scope: ScopeHolder<PARENT>,
 }
 
 impl<SELF, PARENT> VChild<SELF, PARENT>
