@@ -45,6 +45,28 @@ impl<COMP: Component> Default for Scope<COMP> {
     }
 }
 
+pub(crate) struct MountOptions<COMP>
+where
+    COMP: Component,
+{
+    // Mount synchronously (used when mounting child components to avoid re-rendering)
+    pub sync: bool,
+    // The node that will be replaced after mounting
+    pub ancestor: Option<VNode<COMP>>,
+    // The holder for the DOM element that this component will be mounted to
+    pub occupied: Option<NodeCell>,
+}
+
+impl<COMP: Component> Default for MountOptions<COMP> {
+    fn default() -> Self {
+        MountOptions {
+            sync: false,
+            ancestor: None,
+            occupied: None,
+        }
+    }
+}
+
 impl<COMP: Component> Scope<COMP> {
     /// visible for testing
     pub fn new() -> Self {
@@ -53,15 +75,22 @@ impl<COMP: Component> Scope<COMP> {
     }
 
     // TODO Consider to use &Node instead of Element as parent
-    /// Mounts elements in place of previous node (ancestor).
+    /// Mounts a component with `props` to the specified `element` in the DOM.
+    ///
+    /// If `MountOptions.ancestor` is specified, overwrite it.
+    /// If `MountOptions.sync` is false, mount asynchonously.
     pub(crate) fn mount_in_place(
         self,
         element: Element,
-        ancestor: Option<VNode<COMP>>,
-        occupied: Option<NodeCell>,
         props: COMP::Properties,
+        opts: MountOptions<COMP>,
     ) -> Scope<COMP> {
         let mut scope = self.clone();
+        let MountOptions {
+            ancestor,
+            occupied,
+            sync,
+        } = opts;
         let link = ComponentLink::connect(&scope);
         let ready_state = ReadyState {
             env: self.clone(),
@@ -72,22 +101,36 @@ impl<COMP: Component> Scope<COMP> {
             ancestor,
         };
         *scope.shared_state.borrow_mut() = ComponentState::Ready(ready_state);
-        scope.create();
+        scope.create(sync);
         scope
     }
 
-    pub(crate) fn create(&mut self) {
+    // Creates and mounts a component.
+    //
+    // If `sync` is false, create asynchonously.
+    pub(crate) fn create(&mut self, sync: bool) {
         let shared_state = self.shared_state.clone();
-        let create = CreateComponent { shared_state };
-        scheduler().put_and_try_run(Box::new(create));
+        let create = Box::new(CreateComponent { shared_state });
+        if sync {
+            create.run();
+        } else {
+            scheduler().put_and_try_run(create);
+        }
     }
 
-    pub(crate) fn update(&mut self, update: ComponentUpdate<COMP>) {
-        let update = UpdateComponent {
+    // Updates a component with a message or with new properties.
+    //
+    // If `sync` is false, update asynchonously.
+    pub(crate) fn update(&mut self, update: ComponentUpdate<COMP>, sync: bool) {
+        let update = Box::new(UpdateComponent {
             shared_state: self.shared_state.clone(),
             update,
-        };
-        scheduler().put_and_try_run(Box::new(update));
+        });
+        if sync {
+            update.run();
+        } else {
+            scheduler().put_and_try_run(update);
+        }
     }
 
     pub(crate) fn destroy(&mut self) {
@@ -98,12 +141,12 @@ impl<COMP: Component> Scope<COMP> {
 
     /// Send a message to the component
     pub fn send_message(&mut self, msg: COMP::Message) {
-        self.update(ComponentUpdate::Message(msg));
+        self.update(ComponentUpdate::Message(msg), false);
     }
 
     /// send batch of messages to the component
     pub fn send_message_batch(&mut self, messages: Vec<COMP::Message>) {
-        self.update(ComponentUpdate::MessageBatch(messages));
+        self.update(ComponentUpdate::MessageBatch(messages), false);
     }
 }
 

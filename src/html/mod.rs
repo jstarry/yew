@@ -8,6 +8,7 @@ mod scope;
 
 pub use listener::*;
 pub(crate) use scope::ComponentUpdate;
+pub(crate) use scope::MountOptions;
 pub use scope::{NodeCell, Scope};
 
 use crate::callback::Callback;

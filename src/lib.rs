@@ -43,6 +43,7 @@
 //!         }
 //!     }
 //! }
+//!
 //!# fn dont_execute() {
 //! fn main() {
 //!     yew::initialize();
