@@ -39,10 +39,43 @@ impl<COMP: Component> Clone for Scope<COMP> {
     }
 }
 
-impl<COMP> Scope<COMP>
-where
-    COMP: Component,
-{
+impl<COMP: Component> Default for Scope<COMP> {
+    fn default() -> Self {
+        Scope::new()
+    }
+}
+
+impl<COMP: Component> Scope<COMP> {
+    /// visible for testing
+    pub fn new() -> Self {
+        let shared_state = Rc::new(RefCell::new(ComponentState::Empty));
+        Scope { shared_state }
+    }
+
+    // TODO Consider to use &Node instead of Element as parent
+    /// Mounts elements in place of previous node (ancestor).
+    pub(crate) fn mount_in_place(
+        self,
+        element: Element,
+        ancestor: Option<VNode<COMP>>,
+        occupied: Option<NodeCell>,
+        props: COMP::Properties,
+    ) -> Scope<COMP> {
+        let mut scope = self.clone();
+        let link = ComponentLink::connect(&scope);
+        let ready_state = ReadyState {
+            env: self.clone(),
+            element,
+            occupied,
+            link,
+            props,
+            ancestor,
+        };
+        *scope.shared_state.borrow_mut() = ComponentState::Ready(ready_state);
+        scope.create();
+        scope
+    }
+
     pub(crate) fn create(&mut self) {
         let shared_state = self.shared_state.clone();
         let create = CreateComponent { shared_state };
@@ -143,50 +176,6 @@ impl<COMP: Component> CreatedState<COMP> {
 
         self.last_frame = Some(next_frame);
         self
-    }
-}
-
-impl<COMP> Scope<COMP>
-where
-    COMP: Component,
-{
-    /// visible for testing
-    pub fn new() -> Self {
-        let shared_state = Rc::new(RefCell::new(ComponentState::Empty));
-        Scope { shared_state }
-    }
-
-    // TODO Consider to use &Node instead of Element as parent
-    /// Mounts elements in place of previous node (ancestor).
-    pub(crate) fn mount_in_place(
-        self,
-        element: Element,
-        ancestor: Option<VNode<COMP>>,
-        occupied: Option<NodeCell>,
-        props: COMP::Properties,
-    ) -> Scope<COMP> {
-        let mut scope = self.clone();
-        let link = ComponentLink::connect(&scope);
-        let ready_state = ReadyState {
-            env: self.clone(),
-            element,
-            occupied,
-            link,
-            props,
-            ancestor,
-        };
-        *scope.shared_state.borrow_mut() = ComponentState::Ready(ready_state);
-        scope.create();
-        scope
-    }
-}
-
-impl<COMP> Default for Scope<COMP>
-where
-    COMP: Component,
-{
-    fn default() -> Self {
-        Scope::new()
     }
 }
 
