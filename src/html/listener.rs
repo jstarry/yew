@@ -17,7 +17,7 @@ macro_rules! impl_action {
             /// A wrapper for a callback.
             /// Listener extracted from here when attached.
             #[allow(missing_debug_implementations)]
-            pub struct Wrapper<COMP: Component, F>{
+            pub struct Wrapper<COMP: Component, F> {
                 handler: Option<F>,
                 scope_holder: ScopeHolder<COMP>,
             }

@@ -9,7 +9,7 @@ pub use listener::{Listener, Listeners};
 use super::vdiff::{Patch, Reform, VDiff};
 use super::vlist::VList;
 use super::vnode::VNode;
-use crate::html::{Component, NodeRef, Scope};
+use crate::html::{Component, NodeRef, Scope, ScopeHolder, HiddenScope};
 use crate::virtual_dom::VNode as TypedNode;
 use log::warn;
 use std::borrow::Cow;
@@ -39,6 +39,8 @@ type Attributes = HashMap<String, String>;
 pub struct VTag {
     /// A tag of the element.
     tag: Cow<'static, str>,
+    /// Single use function that activates listeners.
+    activator: Option<Box<Activator>>,
     /// A reference to the `Element`.
     pub reference: Option<Element>,
     /// List of attached listeners.
@@ -69,11 +71,19 @@ pub struct VTag {
     captured: Vec<EventListenerHandle>,
 }
 
+/// The method activates all the listeners.
+type Activator = dyn FnOnce(HiddenScope);
+
 impl VTag {
     /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
-    pub fn new<S: Into<Cow<'static, str>>>(tag: S) -> Self {
+    pub fn new<S: Into<Cow<'static, str>>, PARENT: Component>(tag: S, scope_holder: ScopeHolder<PARENT>) -> Self {
+        let activator = move |parent_scope: HiddenScope| {
+            *scope_holder.borrow_mut() = Some(parent_scope.into());
+        };
+
         VTag {
             tag: tag.into(),
+            activator: Some(Box::new(activator)),
             reference: None,
             classes: Classes::new(),
             attributes: Attributes::new(),
@@ -467,6 +477,10 @@ impl VDiff for VTag {
                     handle.remove();
                 }
             }
+
+            // Activate listeners before attaching them
+            let activator = self.activator.take().expect("activator expected");
+            (activator)(parent_scope.clone().into());
 
             for mut listener in self.listeners.drain(..) {
                 let handle = listener.attach(&element);

@@ -1,5 +1,5 @@
 use super::internal;
-use crate::html::Component;
+use crate::html::{ScopeHolder, Component};
 use std::marker::PhantomData;
 use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
@@ -11,9 +11,9 @@ pub struct VTag<COMP: Component> {
 
 impl<COMP: Component> VTag<COMP> {
     /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
-    pub fn new<S: Into<Cow<'static, str>>>(tag: S) -> Self {
+    pub fn new<S: Into<Cow<'static, str>>>(tag: S, scope_holder: ScopeHolder<COMP>) -> Self {
         VTag {
-            _vtag: internal::vtag::VTag::new(tag),
+            _vtag: internal::vtag::VTag::new(tag, scope_holder),
             _type: PhantomData,
         }
     }

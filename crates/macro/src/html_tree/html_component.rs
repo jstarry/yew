@@ -181,7 +181,7 @@ impl ToTokens for HtmlComponent {
                 #validate_props
             }
 
-            let #vcomp_scope: ::yew::virtual_dom::vcomp::ScopeHolder<_> = ::std::default::Default::default();
+            let #vcomp_scope: ::yew::html::ScopeHolder<_> = ::std::default::Default::default();
             let __yew_node_ref: ::yew::html::NodeRef = #node_ref;
             ::yew::virtual_dom::VChild::<#ty, _>::new(#init_props, #vcomp_scope, __yew_node_ref)
         }});

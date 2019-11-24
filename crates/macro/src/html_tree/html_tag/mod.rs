@@ -13,7 +13,7 @@ use syn::parse;
 use syn::parse::{Parse, ParseStream, Result as ParseResult};
 use syn::spanned::Spanned;
 use syn::{Ident, Token};
-use tag_attributes::{ClassesForm, TagAttributes};
+use tag_attributes::{ClassesForm, TagAttributes, MyListener};
 
 pub struct HtmlTag {
     tag_name: TagName,
@@ -87,6 +87,7 @@ impl ToTokens for HtmlTag {
         } = self;
 
         let name = tag_name.to_string();
+        let vtag_scope = Ident::new("__yew_vcomp_scope", Span::call_site());
 
         let TagAttributes {
             classes,
@@ -105,6 +106,9 @@ impl ToTokens for HtmlTag {
         let attr_pairs = attributes.iter().map(|TagAttribute { label, value }| {
             let label_str = label.to_string();
             quote_spanned! {value.span() => (#label_str.to_owned(), (#value).to_string()) }
+        });
+        let listeners = listeners.iter().map(|MyListener { handler, name }| {
+            quote_spanned! {name.span() => ::yew::html::#name::Wrapper::new(#handler, #vtag_scope) }
         });
         let set_kind = kind.iter().map(|kind| {
             quote_spanned! {kind.span()=> #vtag.set_kind(&(#kind)); }
@@ -150,7 +154,8 @@ impl ToTokens for HtmlTag {
         });
 
         tokens.extend(quote! {{
-            let mut #vtag = ::yew::virtual_dom::VTag::new(#name);
+            let #vtag_scope: ::yew::html::ScopeHolder<_> = ::std::default::Default::default();
+            let mut #vtag = ::yew::virtual_dom::VTag::new(#name, #vtag_scope);
             #(#set_kind)*
             #(#set_value)*
             #(#add_href)*

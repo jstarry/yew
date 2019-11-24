@@ -7,9 +7,14 @@ use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream, Result as ParseResult};
 use syn::{Expr, ExprClosure, ExprTuple, Ident, Pat};
 
+pub struct MyListener {
+    pub handler: TokenStream,
+    pub name: Ident,
+}
+
 pub struct TagAttributes {
     pub attributes: Vec<TagAttribute>,
-    pub listeners: Vec<TokenStream>,
+    pub listeners: Vec<MyListener>,
     pub classes: Option<ClassesForm>,
     pub value: Option<Expr>,
     pub kind: Option<Expr>,
@@ -120,7 +125,7 @@ impl TagAttributes {
         }
     }
 
-    fn map_listener(listener: TagListener) -> ParseResult<TokenStream> {
+    fn map_listener(listener: TagListener) -> ParseResult<MyListener> {
         let TagListener {
             name,
             event_name,
@@ -150,23 +155,20 @@ impl TagAttributes {
                     Pat::Wild(pat) => Ok(pat.into_token_stream()),
                     _ => Err(syn::Error::new_spanned(or_span, "invalid closure argument")),
                 }?;
-                let handler =
-                    Ident::new(&format!("__yew_{}_handler", name.to_string()), name.span());
-                let listener =
-                    Ident::new(&format!("__yew_{}_listener", name.to_string()), name.span());
                 let segment = syn::PathSegment {
                     ident: Ident::new(&event_name, name.span()),
                     arguments: syn::PathArguments::None,
                 };
                 let var_type = quote! { ::yew::events::#segment };
-                let wrapper_type = quote! { ::yew::html::#name::Wrapper };
-                let listener_stream = quote_spanned! {name.span()=> {
-                    let #handler = move | #var: #var_type | #body;
-                    let #listener = #wrapper_type::from(#handler);
-                    #listener
+                let handler_stream = quote_spanned! {name.span()=> {
+                    let __yew_handler = move | #var: #var_type | #body;
+                    __yew_handler
                 }};
 
-                Ok(listener_stream)
+                Ok(MyListener {
+                    name,
+                    handler: handler_stream,
+                })
             }
             _ => Err(syn::Error::new_spanned(
                 &name,
