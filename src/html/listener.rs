@@ -1,5 +1,5 @@
 use super::*;
-use crate::virtual_dom::vtag::Listener;
+use crate::virtual_dom::Listener;
 use stdweb::web::html_element::SelectElement;
 #[allow(unused_imports)]
 use stdweb::web::{EventListenerHandle, FileList, INode};

@@ -1,19 +1,22 @@
 //! This module contains the implementation of a virtual element node `VTag`.
 
-pub(crate) mod classes;
-pub(crate) mod listener;
+mod classes;
+mod listener;
+
+pub use classes::Classes;
+pub use listener::{Listener, Listeners};
 
 use super::vdiff::{Patch, Reform, VDiff};
 use super::vlist::VList;
 use super::vnode::VNode;
-use crate::html::NodeRef;
-use classes::Classes;
-use listener::{Listener, Listeners};
+use crate::html::{Component, NodeRef, Scope};
+use crate::virtual_dom::VNode as TypedNode;
 use log::warn;
 use std::borrow::Cow;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::fmt;
+use std::marker::PhantomData;
 use stdweb::unstable::TryFrom;
 use stdweb::web::html_element::InputElement;
 use stdweb::web::html_element::TextAreaElement;
@@ -194,7 +197,7 @@ impl VTag {
     /// Otherwise just add everything.
     fn diff_classes<'a>(
         &'a self,
-        ancestor: &'a Option<Box<Self>>,
+        ancestor: &'a Option<Self>,
     ) -> impl Iterator<Item = Patch<&'a str, ()>> + 'a {
         let to_add = {
             let all_or_nothing = not(ancestor)
@@ -224,7 +227,7 @@ impl VTag {
     /// the values are different.
     fn diff_attributes<'a>(
         &'a self,
-        ancestor: &'a Option<Box<Self>>,
+        ancestor: &'a Option<Self>,
     ) -> impl Iterator<Item = Patch<&'a str, &'a str>> + 'a {
         // Only change what is necessary.
         let to_add_or_replace =
@@ -250,7 +253,7 @@ impl VTag {
     }
 
     /// Similar to `diff_attributers` except there is only a single `kind`.
-    fn diff_kind<'a>(&'a self, ancestor: &'a Option<Box<Self>>) -> Option<Patch<&'a str, ()>> {
+    fn diff_kind<'a>(&'a self, ancestor: &'a Option<Self>) -> Option<Patch<&'a str, ()>> {
         match (
             self.kind.as_ref(),
             ancestor.as_ref().and_then(|anc| anc.kind.as_ref()),
@@ -269,7 +272,7 @@ impl VTag {
     }
 
     /// Almost identical in spirit to `diff_kind`
-    fn diff_value<'a>(&'a self, ancestor: &'a Option<Box<Self>>) -> Option<Patch<&'a str, ()>> {
+    fn diff_value<'a>(&'a self, ancestor: &'a Option<Self>) -> Option<Patch<&'a str, ()>> {
         match (
             self.value.as_ref(),
             ancestor.as_ref().and_then(|anc| anc.value.as_ref()),
@@ -287,7 +290,7 @@ impl VTag {
         }
     }
 
-    fn apply_diffs(&mut self, element: &Element, ancestor: &Option<Box<Self>>) {
+    fn apply_diffs(&mut self, element: &Element, ancestor: &Option<Self>) {
         // Update parameters
         let changes = self.diff_classes(ancestor);
         for change in changes {
@@ -375,23 +378,27 @@ impl VDiff for VTag {
 
     /// Renders virtual tag over DOM `Element`, but it also compares this with an ancestor `VTag`
     /// to compute what to patch in the actual DOM nodes.
-    fn apply(
+    fn apply<PARENT>(
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
-        ancestor: Option<VNode>,
-    ) -> Option<Node> {
+        ancestor: Option<TypedNode<PARENT>>,
+        parent_scope: Scope<PARENT>,
+    ) -> Option<Node>
+    where
+        PARENT: Component,
+    {
         assert!(
             self.reference.is_none(),
             "reference is ignored so must not be set"
         );
         let (reform, mut ancestor) = {
             match ancestor {
-                Some(VNode::VTag(mut vtag)) => {
+                Some(TypedNode::VTag(mut vtag)) => {
                     if self.tag == vtag.tag {
                         // If tags are equal, preserve the reference that already exists.
                         self.reference = vtag.reference.take();
-                        (Reform::Keep, Some(vtag))
+                        (Reform::Keep, Some(vtag._vtag))
                     } else {
                         // We have to create a new reference, remove ancestor.
                         let node = vtag.detach(parent);
@@ -467,8 +474,17 @@ impl VDiff for VTag {
             }
 
             // Process children
-            self.children
-                .apply(&element, None, ancestor.map(|a| a.children.into()));
+            self.children.apply(
+                &element,
+                None,
+                ancestor.map(|a| {
+                    TypedNode::VList(crate::virtual_dom::VList {
+                        _vlist: a.children,
+                        _type: PhantomData,
+                    })
+                }),
+                parent_scope,
+            );
         }
         let node = self.reference.as_ref().map(|e| e.as_node().to_owned());
         self.node_ref.set(node.clone());

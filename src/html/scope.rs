@@ -178,7 +178,7 @@ impl<COMP: Component> CreatedState<COMP> {
     }
 
     fn update(mut self) -> Self {
-        let vnode = self.component.render();
+        let mut vnode = self.component.render();
         let node = vnode.apply(&self.element, None, self.last_frame, self.scope.clone());
         self.node_ref.set(node);
         self.last_frame = Some(vnode);

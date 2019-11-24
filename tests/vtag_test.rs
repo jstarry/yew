@@ -3,8 +3,7 @@ use stdweb::web::{document, IElement};
 #[cfg(feature = "wasm_test")]
 use wasm_bindgen_test::{wasm_bindgen_test as test, wasm_bindgen_test_configure};
 use yew::html::Scope;
-use yew::virtual_dom::vtag::{VTag, HTML_NAMESPACE, SVG_NAMESPACE};
-use yew::virtual_dom::{VDiff, VNode};
+use yew::virtual_dom::{VDiff, VNode, VTag, HTML_NAMESPACE, SVG_NAMESPACE};
 use yew::{html, Component, ComponentLink, Html, ShouldRender};
 
 #[cfg(feature = "wasm_test")]

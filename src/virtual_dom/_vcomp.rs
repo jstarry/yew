@@ -5,7 +5,7 @@ use std::ops::{Deref, DerefMut};
 
 /// A virtual component.
 pub struct VComp<COMP: Component> {
-    _vcomp: internal::vcomp::VComp,
+    pub(crate) _vcomp: internal::vcomp::VComp,
     _type: PhantomData<COMP>,
 }
 

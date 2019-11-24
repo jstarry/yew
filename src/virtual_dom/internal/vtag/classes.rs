@@ -3,7 +3,7 @@ use indexmap::set::IndexSet;
 /// A set of classes.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Classes {
-    set: IndexSet<String>,
+    pub(crate) set: IndexSet<String>,
 }
 
 impl Classes {

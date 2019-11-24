@@ -1,5 +1,5 @@
-use super::vnode::VNode;
 use crate::html::{Component, Scope};
+use crate::virtual_dom::VNode as TypedNode;
 use stdweb::web::{Element, Node};
 
 /// Patch for DOM node modification.
@@ -56,13 +56,13 @@ pub trait VDiff {
     ///
     /// The exception to this is obviously `VRef` which simply uses the inner `Node` directly
     /// (always removes the `Node` that exists).
-    fn apply<COMP>(
+    fn apply<PARENT>(
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
-        ancestor: Option<VNode>,
-        parent_scope: Scope<COMP>,
+        ancestor: Option<TypedNode<PARENT>>,
+        parent_scope: Scope<PARENT>,
     ) -> Option<Node>
     where
-        COMP: Component;
+        PARENT: Component;
 }

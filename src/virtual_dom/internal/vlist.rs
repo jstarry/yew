@@ -2,6 +2,8 @@
 use super::vdiff::VDiff;
 use super::vnode::VNode;
 use super::vtext::VText;
+use crate::html::{Component, Scope};
+use crate::virtual_dom::VNode as TypedNode;
 use std::ops::{Deref, DerefMut};
 use stdweb::web::{Element, Node};
 
@@ -52,28 +54,30 @@ impl VDiff for VList {
         last_sibling
     }
 
-    fn apply(
+    fn apply<PARENT>(
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
-        ancestor: Option<VNode>,
-    ) -> Option<Node> {
+        ancestor: Option<TypedNode<PARENT>>,
+        parent_scope: Scope<PARENT>,
+    ) -> Option<Node>
+    where
+        PARENT: Component,
+    {
         // Reuse previous_sibling, because fragment reuse parent
         let mut previous_sibling = previous_sibling.cloned();
-        let mut rights = {
-            match ancestor {
-                // If element matched this type
-                Some(VNode::VList(vlist)) => {
-                    // Previously rendered items
-                    vlist.children
-                }
-                Some(vnode) => {
-                    // Use the current node as a single fragment list
-                    // and let the `apply` of `VNode` to handle it.
-                    vec![vnode]
-                }
-                None => Vec::new(),
+        let mut rights = match ancestor {
+            // If element matched this type
+            Some(TypedNode::VList(vlist)) => {
+                // Previously rendered items
+                vlist.children()
             }
+            Some(vnode) => {
+                // Use the current node as a single fragment list
+                // and let the `apply` of `VNode` to handle it.
+                vec![vnode.into()]
+            }
+            None => Vec::new(),
         };
 
         if self.children.is_empty() && !self.no_siblings {
@@ -91,10 +95,20 @@ impl VDiff for VList {
         loop {
             match (lefts.next(), rights.next()) {
                 (Some(left), Some(right)) => {
-                    previous_sibling = left.apply(parent, previous_sibling.as_ref(), Some(right));
+                    previous_sibling = left.apply(
+                        parent,
+                        previous_sibling.as_ref(),
+                        Some(TypedNode::VRef(right)),
+                        parent_scope.clone().into(),
+                    );
                 }
                 (Some(left), None) => {
-                    previous_sibling = left.apply(parent, previous_sibling.as_ref(), None);
+                    previous_sibling = left.apply(
+                        parent,
+                        previous_sibling.as_ref(),
+                        None,
+                        parent_scope.clone().into(),
+                    );
                 }
                 (None, Some(ref mut right)) => {
                     right.detach(parent);

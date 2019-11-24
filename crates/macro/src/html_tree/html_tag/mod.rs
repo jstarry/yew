@@ -150,7 +150,7 @@ impl ToTokens for HtmlTag {
         });
 
         tokens.extend(quote! {{
-            let mut #vtag = ::yew::virtual_dom::vtag::VTag::new(#name);
+            let mut #vtag = ::yew::virtual_dom::VTag::new(#name);
             #(#set_kind)*
             #(#set_value)*
             #(#add_href)*

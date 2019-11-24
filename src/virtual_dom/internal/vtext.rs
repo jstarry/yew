@@ -1,7 +1,8 @@
 //! This module contains the implementation of a virtual text node `VText`.
 
 use super::vdiff::{Reform, VDiff};
-use super::vnode::VNode;
+use crate::html::{Component, Scope};
+use crate::virtual_dom::VNode as TypedNode;
 use log::warn;
 use std::cmp::PartialEq;
 use std::fmt;
@@ -42,12 +43,16 @@ impl VDiff for VText {
     }
 
     /// Renders virtual node over existing `TextNode`, but only if value of text had changed.
-    fn apply(
+    fn apply<PARENT>(
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
-        ancestor: Option<VNode>,
-    ) -> Option<Node> {
+        ancestor: Option<TypedNode<PARENT>>,
+        _parent_scope: Scope<PARENT>,
+    ) -> Option<Node>
+    where
+        PARENT: Component,
+    {
         assert!(
             self.reference.is_none(),
             "reference is ignored so must not be set"
@@ -55,7 +60,7 @@ impl VDiff for VText {
         let reform = {
             match ancestor {
                 // If element matched this type
-                Some(VNode::VText(mut vtext)) => {
+                Some(TypedNode::VText(mut vtext)) => {
                     self.reference = vtext.reference.take();
                     if self.text != vtext.text {
                         if let Some(ref element) = self.reference {

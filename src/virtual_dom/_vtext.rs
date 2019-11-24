@@ -5,8 +5,18 @@ use std::ops::{Deref, DerefMut};
 
 /// A virtual component.
 pub struct VText<COMP: Component> {
-    _vtext: internal::vtext::VText,
+    pub(crate) _vtext: internal::vtext::VText,
     _type: PhantomData<COMP>,
+}
+
+impl<COMP: Component> VText<COMP> {
+    /// Creates new virtual text node with a content.
+    pub fn new(text: String) -> Self {
+        VText {
+            _vtext: internal::vtext::VText::new(text),
+            _type: PhantomData,
+        }
+    }
 }
 
 impl<COMP: Component> Deref for VText<COMP> {

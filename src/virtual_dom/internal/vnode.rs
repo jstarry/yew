@@ -5,7 +5,8 @@ use super::vdiff::VDiff;
 use super::vlist::VList;
 use super::vtag::VTag;
 use super::vtext::VText;
-use crate::html::{Component, Renderable};
+use crate::html::{Component, Renderable, Scope};
+use crate::virtual_dom::VNode as TypedNode;
 use std::cmp::PartialEq;
 use std::fmt;
 use std::iter::FromIterator;
@@ -43,17 +44,29 @@ impl VDiff for VNode {
         }
     }
 
-    fn apply(
+    fn apply<PARENT>(
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
-        ancestor: Option<VNode>,
-    ) -> Option<Node> {
+        ancestor: Option<TypedNode<PARENT>>,
+        parent_scope: Scope<PARENT>,
+    ) -> Option<Node>
+    where
+        PARENT: Component,
+    {
         match *self {
-            VNode::VTag(ref mut vtag) => vtag.apply(parent, previous_sibling, ancestor),
-            VNode::VText(ref mut vtext) => vtext.apply(parent, previous_sibling, ancestor),
-            VNode::VComp(ref mut vcomp) => vcomp.apply(parent, previous_sibling, ancestor),
-            VNode::VList(ref mut vlist) => vlist.apply(parent, previous_sibling, ancestor),
+            VNode::VTag(ref mut vtag) => {
+                vtag.apply(parent, previous_sibling, ancestor, parent_scope)
+            }
+            VNode::VText(ref mut vtext) => {
+                vtext.apply(parent, previous_sibling, ancestor, parent_scope)
+            }
+            VNode::VComp(ref mut vcomp) => {
+                vcomp.apply(parent, previous_sibling, ancestor, parent_scope)
+            }
+            VNode::VList(ref mut vlist) => {
+                vlist.apply(parent, previous_sibling, ancestor, parent_scope)
+            }
             VNode::VRef(ref mut node) => {
                 let sibling = match ancestor {
                     Some(mut n) => n.detach(parent),
@@ -103,15 +116,27 @@ impl From<VComp> for VNode {
     }
 }
 
+impl<COMP: Component> From<TypedNode<COMP>> for VNode {
+    fn from(typed_node: TypedNode<COMP>) -> Self {
+        match typed_node {
+            TypedNode::VComp(vcomp) => Self::from(vcomp._vcomp),
+            TypedNode::VList(vlist) => Self::from(vlist._vlist),
+            TypedNode::VTag(vtag) => Self::from(vtag._vtag),
+            TypedNode::VText(vtext) => Self::from(vtext._vtext),
+            TypedNode::VRef(vref) => vref,
+        }
+    }
+}
+
 impl<T: ToString> From<T> for VNode {
     fn from(value: T) -> Self {
         VNode::VText(VText::new(value.to_string()))
     }
 }
 
-impl<'a, COMP: Component> From<&'a dyn Renderable<COMP>> for VNode {
-    fn from(value: &'a dyn Renderable<COMP>) -> Self {
-        value.render()
+impl<'a, PARENT: Component> From<&'a dyn Renderable<PARENT>> for VNode {
+    fn from(value: &'a dyn Renderable<PARENT>) -> Self {
+        value.render().into()
     }
 }
 
@@ -130,7 +155,6 @@ impl fmt::Debug for VNode {
         match *self {
             VNode::VTag(ref vtag) => vtag.fmt(f),
             VNode::VText(ref vtext) => vtext.fmt(f),
-            VNode::VHtml(ref vhtml) => vhtml.fmt(f),
             VNode::VComp(_) => "Component<>".fmt(f),
             VNode::VList(_) => "List<>".fmt(f),
             VNode::VRef(_) => "NodeReference<>".fmt(f),
