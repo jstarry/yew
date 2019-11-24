@@ -3,6 +3,7 @@ use crate::html::{ScopeHolder, Component};
 use std::marker::PhantomData;
 use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
+use super::VNode;
 
 pub struct VTag<COMP: Component> {
     pub(crate) _vtag: internal::vtag::VTag,
@@ -15,6 +16,18 @@ impl<COMP: Component> VTag<COMP> {
         VTag {
             _vtag: internal::vtag::VTag::new(tag, scope_holder),
             _type: PhantomData,
+        }
+    }
+
+    /// Add `VNode` child.
+    pub fn add_child(&mut self, child: VNode<COMP>) {
+        self.children.add_child(child.into());
+    }
+
+    /// Add multiple `VNode` children.
+    pub fn add_children(&mut self, children: Vec<VNode<COMP>>) {
+        for child in children {
+            self.add_child(child);
         }
     }
 }
