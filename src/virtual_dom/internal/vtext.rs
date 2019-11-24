@@ -1,6 +1,7 @@
 //! This module contains the implementation of a virtual text node `VText`.
 
-use super::{Reform, VDiff, VNode};
+use super::vdiff::{Reform, VDiff};
+use super::vnode::VNode;
 use log::warn;
 use std::cmp::PartialEq;
 use std::fmt;

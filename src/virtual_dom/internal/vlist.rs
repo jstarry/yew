@@ -1,8 +1,7 @@
 //! This module contains fragments implementation.
-use super::{VDiff, VNode, VText};
-use crate::html::{Component, Html, ScopeHolder};
-use log::warn;
-use std::any::TypeId;
+use super::vdiff::VDiff;
+use super::vnode::VNode;
+use super::vtext::VText;
 use std::ops::{Deref, DerefMut};
 use stdweb::web::{Element, Node};
 

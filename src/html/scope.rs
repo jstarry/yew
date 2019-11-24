@@ -1,6 +1,7 @@
 use super::*;
 use crate::scheduler::{scheduler, Runnable, Shared};
-use crate::virtual_dom::{VDiff, VNode};
+use crate::virtual_dom::internal::vdiff::VDiff;
+use crate::virtual_dom::VNode;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -20,7 +21,6 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
 pub type ScopeHolder<PARENT> = Rc<RefCell<Option<Scope<PARENT>>>>;
 
 /// A context which allows sending messages to a component.
-#[derive(Clone)]
 pub struct Scope<COMP: Component> {
     shared_state: Shared<ComponentState<COMP>>,
 }
@@ -56,7 +56,7 @@ impl<COMP: Component> Scope<COMP> {
     pub(crate) fn mount_in_place(
         self,
         element: Element,
-        ancestor: Option<VNode>,
+        ancestor: Option<VNode<COMP>>,
         node_ref: NodeRef,
         props: COMP::Properties,
     ) -> Scope<COMP> {
@@ -144,7 +144,7 @@ struct ReadyState<COMP: Component> {
     node_ref: NodeRef,
     props: COMP::Properties,
     link: ComponentLink<COMP>,
-    ancestor: Option<VNode>,
+    ancestor: Option<VNode<COMP>>,
 }
 
 impl<COMP: Component> ReadyState<COMP> {
@@ -163,7 +163,7 @@ struct CreatedState<COMP: Component> {
     scope: Scope<COMP>,
     element: Element,
     component: COMP,
-    last_frame: Option<VNode>,
+    last_frame: Option<VNode<COMP>>,
     node_ref: NodeRef,
 }
 
@@ -315,7 +315,7 @@ impl<COMP: Component> From<Scope<COMP>> for HiddenScope {
 impl<COMP: Component> Into<Scope<COMP>> for HiddenScope {
     fn into(self: HiddenScope) -> Scope<COMP> {
         if self.type_id != TypeId::of::<COMP>() {
-            panic!("encountered unespected component type");
+            panic!("encountered unexpected component type");
         }
 
         unsafe {

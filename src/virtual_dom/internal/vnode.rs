@@ -1,7 +1,11 @@
 //! This module contains the implementation of abstract virtual node.
 
-use super::{VChild, VComp, VDiff, VList, VTag, VText};
-use crate::html::{Component, Html, Renderable};
+use super::vcomp::VComp;
+use super::vdiff::VDiff;
+use super::vlist::VList;
+use super::vtag::VTag;
+use super::vtext::VText;
+use crate::html::{Component, Renderable};
 use std::cmp::PartialEq;
 use std::fmt;
 use std::iter::FromIterator;
@@ -96,15 +100,6 @@ impl From<VTag> for VNode {
 impl From<VComp> for VNode {
     fn from(vcomp: VComp) -> Self {
         VNode::VComp(vcomp)
-    }
-}
-
-impl<COMP> From<VChild<COMP>> for VNode
-where
-    COMP: Component,
-{
-    fn from(vchild: VChild<COMP>) -> Self {
-        VNode::VComp(VComp::from(vchild))
     }
 }
 

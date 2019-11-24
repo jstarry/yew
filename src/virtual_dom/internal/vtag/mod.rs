@@ -1,10 +1,18 @@
 //! This module contains the implementation of a virtual element node `VTag`.
 
-use super::{Attributes, Classes, Listener, Listeners, Patch, Reform, VDiff, VList, VNode};
+pub(crate) mod classes;
+pub(crate) mod listener;
+
+use super::vdiff::{Patch, Reform, VDiff};
+use super::vlist::VList;
+use super::vnode::VNode;
 use crate::html::NodeRef;
+use classes::Classes;
+use listener::{Listener, Listeners};
 use log::warn;
 use std::borrow::Cow;
 use std::cmp::PartialEq;
+use std::collections::HashMap;
 use std::fmt;
 use stdweb::unstable::TryFrom;
 use stdweb::web::html_element::InputElement;
@@ -18,6 +26,9 @@ pub const SVG_NAMESPACE: &str = "http://www.w3.org/2000/svg";
 
 /// Default namespace for html elements
 pub const HTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
+
+/// A map of attributes.
+type Attributes = HashMap<String, String>;
 
 /// A type for a virtual
 /// [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element)
