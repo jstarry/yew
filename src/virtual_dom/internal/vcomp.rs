@@ -1,6 +1,7 @@
 //! This module contains the implementation of a virtual component `VComp`.
 
-use super::{VDiff, VNode};
+use super::vdiff::VDiff;
+use super::vnode::VNode;
 use crate::callback::Callback;
 use crate::html::{Component, ComponentUpdate, HiddenScope, NodeRef, Scope, ScopeHolder};
 use std::any::TypeId;

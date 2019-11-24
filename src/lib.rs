@@ -151,11 +151,10 @@ pub mod prelude {
     pub use crate::callback::Callback;
     pub use crate::events::*;
     pub use crate::html::{
-        Children, ChildrenWithProps, Component, ComponentLink, Href, Html, NodeRef, Properties,
-        Renderable, ShouldRender,
+        Component, ComponentLink, Href, Html, NodeRef, Properties, Renderable, ShouldRender,
     };
     pub use crate::macros::*;
-    pub use crate::virtual_dom::Classes;
+    pub use crate::virtual_dom::vtag::Classes;
 
     /// Prelude module for creating worker.
     #[cfg(feature = "agent")]
