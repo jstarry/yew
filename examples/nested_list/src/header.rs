@@ -1,4 +1,4 @@
-use crate::list::Hovered;
+use super::Hovered;
 use yew::prelude::*;
 
 pub struct ListHeader {

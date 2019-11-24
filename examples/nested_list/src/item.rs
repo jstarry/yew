@@ -1,6 +1,7 @@
-use crate::list::Hovered;
+use super::Hovered;
 use yew::html::Children;
 use yew::prelude::*;
+use crate::Model;
 
 pub struct ListItem {
     link: ComponentLink<Self>,

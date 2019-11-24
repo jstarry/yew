@@ -1,21 +1,9 @@
+use super::Hovered;
 use crate::{header::Props as HeaderProps, ListHeader};
 use crate::{item::Props as ItemProps, ListItem};
-use std::fmt;
-use yew::html::ChildrenRenderer;
+use yew::html::{ChildrenRenderer};
 use yew::prelude::*;
 use yew::virtual_dom::{VChild, VComp, VNode};
-
-#[derive(Debug)]
-pub enum Hovered {
-    Header,
-    Item(String),
-    List,
-    None,
-}
-
-pub enum Msg {
-    Hover(Hovered),
-}
 
 pub enum Variants {
     Item(<ListItem as Component>::Properties),
@@ -42,12 +30,17 @@ pub struct ListVariant {
 pub struct Props {
     #[props(required)]
     pub children: ChildrenRenderer<ListVariant>,
+    #[props(required)]
+    pub on_hover: Callback<Hovered>,
 }
 
 pub struct List {
     link: ComponentLink<Self>,
     props: Props,
-    hovered: Hovered,
+}
+
+pub enum Msg {
+    Hover(Hovered),
 }
 
 impl Component for List {
@@ -58,15 +51,18 @@ impl Component for List {
         List {
             link,
             props,
-            hovered: Hovered::None,
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::Hover(hovered) => self.hovered = hovered,
+            Msg::Hover(hovered) => {
+                self.props
+                    .on_hover
+                    .emit(hovered);
+            }
         }
-        true
+        false
     }
 
     fn view(&self) -> Html {
@@ -82,7 +78,6 @@ impl Component for List {
                         {self.view_items()}
                     </div>
                 </div>
-                {self.view_last_hovered()}
             </div>
         }
     }
@@ -110,32 +105,6 @@ impl List {
                 c
             })
         }}
-    }
-
-    fn view_last_hovered(&self) -> Html {
-        html! {
-            <div class="last-hovered">
-                { "Last hovered:"}
-                <span class="last-hovered-text">
-                    { &self.hovered }
-                </span>
-            </div>
-        }
-    }
-}
-
-impl fmt::Display for Hovered {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Hovered::Header => "Header",
-                Hovered::Item(name) => name,
-                Hovered::List => "List container",
-                Hovered::None => "Nothing",
-            }
-        )
     }
 }
 
