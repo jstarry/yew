@@ -315,7 +315,7 @@ impl<COMP: Component> From<Scope<COMP>> for HiddenScope {
 impl<COMP: Component> Into<Scope<COMP>> for HiddenScope {
     fn into(self: HiddenScope) -> Scope<COMP> {
         if self.type_id != TypeId::of::<COMP>() {
-            panic!("encountered unespected component type");
+            panic!("encountered unexpected component type");
         }
 
         unsafe {
