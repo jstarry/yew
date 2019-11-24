@@ -16,7 +16,11 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     Properties(COMP::Properties),
 }
 
+/// A reference to the parent's scope which will be used later to send messages.
+pub type ScopeHolder<PARENT> = Rc<RefCell<Option<Scope<PARENT>>>>;
+
 /// A context which allows sending messages to a component.
+#[derive(Clone)]
 pub struct Scope<COMP: Component> {
     shared_state: Shared<ComponentState<COMP>>,
 }
@@ -52,7 +56,7 @@ impl<COMP: Component> Scope<COMP> {
     pub(crate) fn mount_in_place(
         self,
         element: Element,
-        ancestor: Option<VNode<COMP>>,
+        ancestor: Option<VNode>,
         node_ref: NodeRef,
         props: COMP::Properties,
     ) -> Scope<COMP> {
@@ -140,7 +144,7 @@ struct ReadyState<COMP: Component> {
     node_ref: NodeRef,
     props: COMP::Properties,
     link: ComponentLink<COMP>,
-    ancestor: Option<VNode<COMP>>,
+    ancestor: Option<VNode>,
 }
 
 impl<COMP: Component> ReadyState<COMP> {
@@ -159,7 +163,7 @@ struct CreatedState<COMP: Component> {
     scope: Scope<COMP>,
     element: Element,
     component: COMP,
-    last_frame: Option<VNode<COMP>>,
+    last_frame: Option<VNode>,
     node_ref: NodeRef,
 }
 
@@ -174,10 +178,10 @@ impl<COMP: Component> CreatedState<COMP> {
     }
 
     fn update(mut self) -> Self {
-        let mut next_frame = self.component.render();
-        let node = next_frame.apply(&self.element, None, self.last_frame, &self.scope);
+        let vnode = self.component.render();
+        let node = vnode.apply(&self.element, None, self.last_frame, self.scope.clone());
         self.node_ref.set(node);
-        self.last_frame = Some(next_frame);
+        self.last_frame = Some(vnode);
         self
     }
 }
@@ -289,5 +293,34 @@ where
                 panic!("unexpected component state: {}", current_state);
             }
         });
+    }
+}
+
+struct Hidden;
+
+pub struct HiddenScope {
+    type_id: TypeId,
+    scope: *mut Hidden,
+}
+
+impl<COMP: Component> From<Scope<COMP>> for HiddenScope {
+    fn from(scope: Scope<COMP>) -> Self {
+        HiddenScope {
+            type_id: TypeId::of::<COMP>(),
+            scope: Box::into_raw(Box::new(scope)) as *mut Hidden,
+        }
+    }
+}
+
+impl<COMP: Component> Into<Scope<COMP>> for HiddenScope {
+    fn into(self: HiddenScope) -> Scope<COMP> {
+        if self.type_id != TypeId::of::<COMP>() {
+            panic!("encountered unespected component type");
+        }
+
+        unsafe {
+            let raw: *mut Scope<COMP> = self.scope as *mut Scope<COMP>;
+            *Box::from_raw(raw)
+        }
     }
 }

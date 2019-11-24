@@ -7,8 +7,8 @@ mod listener;
 mod scope;
 
 pub use listener::*;
-pub(crate) use scope::ComponentUpdate;
-pub use scope::Scope;
+pub(crate) use scope::{ComponentUpdate, HiddenScope};
+pub use scope::{Scope, ScopeHolder};
 
 use crate::callback::Callback;
 use crate::virtual_dom::{VChild, VList, VNode};
@@ -57,7 +57,7 @@ pub trait Component: Sized + 'static {
 }
 
 /// A type which expected as a result of `view` function implementation.
-pub type Html<MSG> = VNode<MSG>;
+pub type Html = VNode;
 
 /// A type used for accepting children elements in Component::Properties.
 ///
@@ -116,7 +116,7 @@ pub type Html<MSG> = VNode<MSG>;
 ///     }
 /// }
 /// ```
-pub type Children<T> = ChildrenRenderer<Html<T>>;
+pub type Children<COMP> = ChildrenRenderer<Html<COMP>>;
 
 /// A type used for accepting children elements in Component::Properties and accessing their props.
 ///
@@ -205,7 +205,7 @@ pub type Children<T> = ChildrenRenderer<Html<T>>;
 ///#     fn view(&self) -> Html<ListItem> {unimplemented!()}
 ///# }
 /// ```
-pub type ChildrenWithProps<C, P> = ChildrenRenderer<VChild<C, P>>;
+pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;
 
 /// A type used for rendering children html.
 pub struct ChildrenRenderer<T> {
@@ -213,7 +213,10 @@ pub struct ChildrenRenderer<T> {
     boxed_render: Box<dyn Fn() -> Vec<T>>,
 }
 
-impl<T> ChildrenRenderer<T> {
+impl<T> ChildrenRenderer<T>
+where
+    T: Into<VNode>,
+{
     /// Create children
     pub fn new(len: usize, boxed_render: Box<dyn Fn() -> Vec<T>>) -> Self {
         Self { len, boxed_render }
@@ -258,9 +261,9 @@ impl<T> fmt::Debug for ChildrenRenderer<T> {
     }
 }
 
-impl<T, COMP: Component> Renderable<COMP> for ChildrenRenderer<T>
+impl<COMP: Component, T> Renderable<COMP> for ChildrenRenderer<T>
 where
-    T: Into<VNode<COMP>>,
+    T: Into<VNode>,
 {
     fn render(&self) -> Html<COMP> {
         VList {

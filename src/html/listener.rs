@@ -17,39 +17,44 @@ macro_rules! impl_action {
             /// A wrapper for a callback.
             /// Listener extracted from here when attached.
             #[allow(missing_debug_implementations)]
-            pub struct Wrapper<F>(Option<F>);
+            pub struct Wrapper<COMP: Component, F>{
+                handler: Option<F>,
+                scope_holder: ScopeHolder<COMP>,
+            }
 
             /// And event type which keeps the returned type.
             pub type Event = $ret;
 
-            impl<F, MSG> From<F> for Wrapper<F>
-            where
-                MSG: 'static,
-                F: Fn($ret) -> MSG + 'static,
+            impl<COMP, F> Wrapper<COMP, F>
+                where COMP: Component, F: Fn($ret) -> COMP::Message + 'static,
             {
-                fn from(handler: F) -> Self {
-                    Wrapper(Some(handler))
+                pub fn new(handler: F,scope_holder: ScopeHolder<COMP>) -> Self {
+                    Wrapper{
+                        handler: Some(handler),
+                        scope_holder,
+                    }
                 }
             }
 
-            impl<T, COMP> Listener<COMP> for Wrapper<T>
+            impl<COMP, F> Listener for Wrapper<COMP, F>
             where
-                T: Fn($ret) -> COMP::Message + 'static,
                 COMP: Component,
+                F: Fn($ret) -> COMP::Message + 'static,
             {
                 fn kind(&self) -> &'static str {
                     stringify!($action)
                 }
 
-                fn attach(&mut self, element: &Element, mut activator: Scope<COMP>)
+                fn attach(&mut self, element: &Element)
                     -> EventListenerHandle {
-                    let handler = self.0.take().expect("tried to attach listener twice");
+                    let handler = self.handler.take().expect("tried to attach listener twice");
+                    let mut scope = self.scope_holder.borrow().clone().expect("scope hasn't been set by parent");
                     let this = element.clone();
                     let listener = move |event: $type| {
                         event.stop_propagation();
                         let handy_event: $ret = $convert(&this, event);
                         let msg = handler(handy_event);
-                        activator.send_message(msg);
+                        scope.send_message(msg);
                     };
                     element.add_event_listener(listener)
                 }

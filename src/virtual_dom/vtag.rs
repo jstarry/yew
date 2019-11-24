@@ -1,7 +1,7 @@
 //! This module contains the implementation of a virtual element node `VTag`.
 
 use super::{Attributes, Classes, Listener, Listeners, Patch, Reform, VDiff, VList, VNode};
-use crate::html::{Component, NodeRef, Scope};
+use crate::html::NodeRef;
 use log::warn;
 use std::borrow::Cow;
 use std::cmp::PartialEq;
@@ -22,17 +22,17 @@ pub const HTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
 /// A type for a virtual
 /// [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element)
 /// representation.
-pub struct VTag<COMP: Component> {
+pub struct VTag {
     /// A tag of the element.
     tag: Cow<'static, str>,
     /// A reference to the `Element`.
     pub reference: Option<Element>,
     /// List of attached listeners.
-    pub listeners: Listeners<COMP>,
+    pub listeners: Listeners,
     /// List of attributes.
     pub attributes: Attributes,
     /// List of children nodes
-    pub children: VList<COMP>,
+    pub children: VList,
     /// List of attached classes.
     pub classes: Classes,
     /// Contains a value of an
@@ -55,7 +55,7 @@ pub struct VTag<COMP: Component> {
     captured: Vec<EventListenerHandle>,
 }
 
-impl<COMP: Component> VTag<COMP> {
+impl VTag {
     /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
     pub fn new<S: Into<Cow<'static, str>>>(tag: S) -> Self {
         VTag {
@@ -81,12 +81,12 @@ impl<COMP: Component> VTag<COMP> {
     }
 
     /// Add `VNode` child.
-    pub fn add_child(&mut self, child: VNode<COMP>) {
+    pub fn add_child(&mut self, child: VNode) {
         self.children.add_child(child);
     }
 
     /// Add multiple `VNode` children.
-    pub fn add_children(&mut self, children: Vec<VNode<COMP>>) {
+    pub fn add_children(&mut self, children: Vec<VNode>) {
         for child in children {
             self.add_child(child);
         }
@@ -160,14 +160,14 @@ impl<COMP: Component> VTag<COMP> {
     /// Adds new listener to the node.
     /// It's boxed because we want to keep it in a single list.
     /// Lates `Listener::attach` called to attach actual listener to a DOM node.
-    pub fn add_listener(&mut self, listener: Box<dyn Listener<COMP>>) {
+    pub fn add_listener(&mut self, listener: Box<dyn Listener>) {
         self.listeners.push(listener);
     }
 
     /// Adds new listeners to the node.
     /// They are boxed because we want to keep them in a single list.
     /// Lates `Listener::attach` called to attach actual listener to a DOM node.
-    pub fn add_listeners(&mut self, listeners: Vec<Box<dyn Listener<COMP>>>) {
+    pub fn add_listeners(&mut self, listeners: Vec<Box<dyn Listener>>) {
         for listener in listeners {
             self.listeners.push(listener);
         }
@@ -344,9 +344,7 @@ impl<COMP: Component> VTag<COMP> {
     }
 }
 
-impl<COMP: Component> VDiff for VTag<COMP> {
-    type Component = COMP;
-
+impl VDiff for VTag {
     /// Remove VTag from parent.
     fn detach(&mut self, parent: &Element) -> Option<Node> {
         let node = self
@@ -370,8 +368,7 @@ impl<COMP: Component> VDiff for VTag<COMP> {
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
-        ancestor: Option<VNode<Self::Component>>,
-        parent_scope: &Scope<Self::Component>,
+        ancestor: Option<VNode>,
     ) -> Option<Node> {
         assert!(
             self.reference.is_none(),
@@ -454,17 +451,13 @@ impl<COMP: Component> VDiff for VTag<COMP> {
             }
 
             for mut listener in self.listeners.drain(..) {
-                let handle = listener.attach(&element, parent_scope.clone());
+                let handle = listener.attach(&element);
                 self.captured.push(handle);
             }
 
             // Process children
-            self.children.apply(
-                &element,
-                None,
-                ancestor.map(|a| a.children.into()),
-                parent_scope,
-            );
+            self.children
+                .apply(&element, None, ancestor.map(|a| a.children.into()));
         }
         let node = self.reference.as_ref().map(|e| e.as_node().to_owned());
         self.node_ref.set(node.clone());
@@ -472,7 +465,7 @@ impl<COMP: Component> VDiff for VTag<COMP> {
     }
 }
 
-impl<COMP: Component> fmt::Debug for VTag<COMP> {
+impl fmt::Debug for VTag {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VTag {{ tag: {} }}", self.tag)
     }
@@ -494,8 +487,8 @@ fn set_checked(input: &InputElement, value: bool) {
     js!( @(no_return) @{input}.checked = @{value}; );
 }
 
-impl<COMP: Component> PartialEq for VTag<COMP> {
-    fn eq(&self, other: &VTag<COMP>) -> bool {
+impl PartialEq for VTag {
+    fn eq(&self, other: &VTag) -> bool {
         self.tag == other.tag
             && self.value == other.value
             && self.kind == other.kind
