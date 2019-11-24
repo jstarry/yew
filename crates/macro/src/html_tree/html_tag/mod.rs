@@ -107,7 +107,7 @@ impl ToTokens for HtmlTag {
             let label_str = label.to_string();
             quote_spanned! {value.span() => (#label_str.to_owned(), (#value).to_string()) }
         });
-        let listeners = listeners.iter().map(|MyListener { handler, name }| {
+        let wrapped_listeners = listeners.iter().map(|MyListener { handler, name }| {
             quote_spanned! {name.span() => ::yew::html::#name::Wrapper::new(#handler, #vtag_scope) }
         });
         let set_kind = kind.iter().map(|kind| {
@@ -153,9 +153,19 @@ impl ToTokens for HtmlTag {
             }
         });
 
+        let init_vtag = if !listeners.is_empty() {
+            quote! {
+                let #vtag_scope: ::yew::html::ScopeHolder<_> = ::std::default::Default::default();
+                let mut #vtag = ::yew::virtual_dom::VTag::new_with_scope(#name, #vtag_scope);
+            }
+        } else {
+            quote! {
+                let mut #vtag = ::yew::virtual_dom::VTag::new(#name);
+            }
+        };
+
         tokens.extend(quote! {{
-            let #vtag_scope: ::yew::html::ScopeHolder<_> = ::std::default::Default::default();
-            let mut #vtag = ::yew::virtual_dom::VTag::new(#name, #vtag_scope);
+            #init_vtag
             #(#set_kind)*
             #(#set_value)*
             #(#add_href)*
@@ -165,7 +175,7 @@ impl ToTokens for HtmlTag {
             #(#set_classes)*
             #(#set_node_ref)*
             #vtag.add_attributes(vec![#(#attr_pairs),*]);
-            #vtag.add_listeners(vec![#(::std::boxed::Box::new(#listeners)),*]);
+            #vtag.add_listeners(vec![#(::std::boxed::Box::new(#wrapped_listeners)),*]);
             #vtag.add_children(vec![#(#children),*]);
             ::yew::virtual_dom::VNode::from(#vtag)
         }});

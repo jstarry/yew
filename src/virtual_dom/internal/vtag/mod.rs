@@ -39,8 +39,6 @@ type Attributes = HashMap<String, String>;
 pub struct VTag {
     /// A tag of the element.
     tag: Cow<'static, str>,
-    /// Single use function that activates listeners.
-    activator: Option<Box<Activator>>,
     /// A reference to the `Element`.
     pub reference: Option<Element>,
     /// List of attached listeners.
@@ -66,6 +64,8 @@ pub struct VTag {
     pub checked: bool,
     /// A node reference used for DOM access in Component lifecycle methods
     pub node_ref: NodeRef,
+    /// Single use function that activates listeners.
+    activator: Option<Box<Activator>>,
     /// _Service field_. Keeps handler for attached listeners
     /// to have an opportunity to drop them later.
     captured: Vec<EventListenerHandle>,
@@ -76,14 +76,23 @@ type Activator = dyn FnOnce(HiddenScope);
 
 impl VTag {
     /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
-    pub fn new<S: Into<Cow<'static, str>>, PARENT: Component>(tag: S, scope_holder: ScopeHolder<PARENT>) -> Self {
+    pub fn new<S: Into<Cow<'static, str>>, PARENT: Component>(tag: S) -> Self {
+        Self::new_with_activator(tag, None)
+    }
+
+    pub fn new_with_scope<S: Into<Cow<'static, str>>, PARENT: Component>(tag: S, scope_holder: ScopeHolder<PARENT>) -> Self {
         let activator = move |parent_scope: HiddenScope| {
             *scope_holder.borrow_mut() = Some(parent_scope.into());
         };
 
+        Self::new_with_activator(tag, Some(Box::new(activator)))
+    }
+
+    /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
+    fn new_with_activator<S: Into<Cow<'static, str>>>(tag: S, activator: Option<Box<Activator>>) -> Self {
         VTag {
             tag: tag.into(),
-            activator: Some(Box::new(activator)),
+            activator,
             reference: None,
             classes: Classes::new(),
             attributes: Attributes::new(),
@@ -478,13 +487,15 @@ impl VDiff for VTag {
                 }
             }
 
-            // Activate listeners before attaching them
-            let activator = self.activator.take().expect("activator expected");
-            (activator)(parent_scope.clone().into());
+            if !self.listeners.is_empty() {
+                // Activate listeners before attaching them
+                let activator = self.activator.take().expect("activator expected");
+                (activator)(parent_scope.clone().into());
 
-            for mut listener in self.listeners.drain(..) {
-                let handle = listener.attach(&element);
-                self.captured.push(handle);
+                for mut listener in self.listeners.drain(..) {
+                    let handle = listener.attach(&element);
+                    self.captured.push(handle);
+                }
             }
 
             // Process children

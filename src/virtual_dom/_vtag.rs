@@ -12,9 +12,17 @@ pub struct VTag<COMP: Component> {
 
 impl<COMP: Component> VTag<COMP> {
     /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
-    pub fn new<S: Into<Cow<'static, str>>>(tag: S, scope_holder: ScopeHolder<COMP>) -> Self {
+    pub fn new_with_scope<S: Into<Cow<'static, str>>>(tag: S, scope_holder: ScopeHolder<COMP>) -> Self {
         VTag {
-            _vtag: internal::vtag::VTag::new(tag, scope_holder),
+            _vtag: internal::vtag::VTag::new_with_scope(tag, scope_holder),
+            _type: PhantomData,
+        }
+    }
+
+    /// Creates a new `VTag` instance with `tag` name (cannot be changed later in DOM).
+    pub fn new<S: Into<Cow<'static, str>>>(tag: S) -> Self {
+        VTag {
+            _vtag: internal::vtag::VTag::new(tag),
             _type: PhantomData,
         }
     }
