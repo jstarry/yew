@@ -6,6 +6,7 @@ use log::warn;
 use std::borrow::Cow;
 use std::cmp::PartialEq;
 use std::fmt;
+use std::rc::Rc;
 use stdweb::unstable::TryFrom;
 use stdweb::web::html_element::InputElement;
 use stdweb::web::html_element::TextAreaElement;
@@ -53,6 +54,24 @@ pub struct VTag {
     /// _Service field_. Keeps handler for attached listeners
     /// to have an opportunity to drop them later.
     captured: Vec<EventListenerHandle>,
+}
+
+impl Clone for VTag {
+    fn clone(&self) -> Self {
+        VTag {
+            tag: self.tag.clone(),
+            reference: None,
+            listeners: self.listeners.clone(),
+            attributes: self.attributes.clone(),
+            children: self.children.clone(),
+            classes: self.classes.clone(),
+            value: self.value.clone(),
+            kind: self.kind.clone(),
+            checked: self.checked,
+            node_ref: self.node_ref.clone(),
+            captured: Vec::new(),
+        }
+    }
 }
 
 impl VTag {
@@ -160,14 +179,14 @@ impl VTag {
     /// Adds new listener to the node.
     /// It's boxed because we want to keep it in a single list.
     /// Lates `Listener::attach` called to attach actual listener to a DOM node.
-    pub fn add_listener(&mut self, listener: Box<dyn Listener>) {
+    pub fn add_listener(&mut self, listener: Rc<dyn Listener>) {
         self.listeners.push(listener);
     }
 
     /// Adds new listeners to the node.
     /// They are boxed because we want to keep them in a single list.
     /// Lates `Listener::attach` called to attach actual listener to a DOM node.
-    pub fn add_listeners(&mut self, listeners: Vec<Box<dyn Listener>>) {
+    pub fn add_listeners(&mut self, listeners: Vec<Rc<dyn Listener>>) {
         for listener in listeners {
             self.listeners.push(listener);
         }
@@ -450,7 +469,7 @@ impl VDiff for VTag {
                 }
             }
 
-            for mut listener in self.listeners.drain(..) {
+            for listener in self.listeners.drain(..) {
                 let handle = listener.attach(&element);
                 self.captured.push(handle);
             }

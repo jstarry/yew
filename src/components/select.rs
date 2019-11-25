@@ -51,8 +51,8 @@ pub enum Msg {
 }
 
 /// Properties of `Select` component.
-#[derive(PartialEq, Properties, Debug)]
-pub struct Props<T> {
+#[derive(PartialEq, Clone, Properties, Debug)]
+pub struct Props<T: Clone> {
     /// Initially selected value.
     pub selected: Option<T>,
     /// Disabled the component's selector.

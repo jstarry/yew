@@ -19,7 +19,7 @@ macro_rules! impl_action {
 
             /// A wrapper for a callback.
             /// Listener extracted from here when attached.
-            #[allow(missing_debug_implementations)]
+            #[derive(Clone, Debug)]
             pub struct Wrapper {
                 callback: Callback<Event>,
             }
@@ -35,7 +35,8 @@ macro_rules! impl_action {
                     stringify!($action)
                 }
 
-                fn attach(&mut self, element: &Element)
+                // TODO think about preventing double attach
+                fn attach(&self, element: &Element)
                     -> EventListenerHandle {
                     let this = element.clone();
                     let callback = self.callback.clone();

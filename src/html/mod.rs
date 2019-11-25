@@ -347,7 +347,7 @@ impl<COMP: Component> Renderable for COMP {
 }
 
 /// Trait for building properties for a component
-pub trait Properties {
+pub trait Properties: Clone {
     /// Builder that will be used to construct properties
     type Builder;
 
