@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 mod header;
 mod item;
@@ -58,9 +58,10 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let on_hover = self.link.send_back(ListMsg::Hover);
+        let on_hover = self.link.send_back(Msg::Hover);
+        let onmouseenter = self.link.send_back(|_| Msg::Hover(Hovered::None));
         html! {
-            <div class="main" onmouseenter=|_| Msg::Hover(Hovered::None)>
+            <div class="main" onmouseenter=onmouseenter>
                 <h1>{ "Nested List Demo" }</h1>
                 <List on_hover=on_hover.clone()>
                     <ListHeader text="Calling all Rusties!" on_hover=on_hover.clone() />
@@ -82,7 +83,7 @@ impl Component for Model {
 }
 
 impl Model {
-    fn view_last_hovered(&self) -> Html<Self> {
+    fn view_last_hovered(&self) -> Html {
         html! {
             <div class="last-hovered">
                 { "Last hovered:"}

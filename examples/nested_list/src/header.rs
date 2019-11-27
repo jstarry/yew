@@ -2,6 +2,7 @@ use super::Hovered;
 use yew::prelude::*;
 
 pub struct ListHeader {
+    link: ComponentLink<Self>,
     props: Props,
 }
 
@@ -21,8 +22,8 @@ impl Component for ListHeader {
     type Message = Msg;
     type Properties = Props;
 
-    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
-        ListHeader { props }
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        ListHeader { link, props }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -36,7 +37,7 @@ impl Component for ListHeader {
 
     fn view(&self) -> Html {
         html! {
-            <div class="list-header" onmouseover=|_| Msg::Hover>
+            <div class="list-header" onmouseover=self.link.send_back(|_| Msg::Hover)>
                 { &self.props.text }
             </div>
         }
