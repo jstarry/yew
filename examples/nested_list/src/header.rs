@@ -34,7 +34,7 @@ impl Component for ListHeader {
         false
     }
 
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div class="list-header" onmouseover=|_| Msg::Hover>
                 { &self.props.text }

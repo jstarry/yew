@@ -3,7 +3,6 @@ use crate::{item::Props as ItemProps, ListItem};
 use std::fmt;
 use yew::html::ChildrenRenderer;
 use yew::prelude::*;
-use yew::virtual_dom::vcomp::ScopeHolder;
 use yew::virtual_dom::{VChild, VComp, VNode};
 
 #[derive(Debug)]
@@ -37,7 +36,6 @@ impl From<HeaderProps> for Variants {
 
 pub struct ListVariant {
     props: Variants,
-    scope: ScopeHolder<List>,
 }
 
 #[derive(Properties)]
@@ -47,6 +45,7 @@ pub struct Props {
 }
 
 pub struct List {
+    link: ComponentLink<Self>,
     props: Props,
     hovered: Hovered,
 }
@@ -55,8 +54,9 @@ impl Component for List {
     type Message = Msg;
     type Properties = Props;
 
-    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         List {
+            link,
             props,
             hovered: Hovered::None,
         }
@@ -69,12 +69,12 @@ impl Component for List {
         true
     }
 
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         html! {
             <div
                 class="list-container"
-                onmouseout=|_| Msg::Hover(Hovered::None)
-                onmouseover=|_| Msg::Hover(Hovered::List)
+                onmouseout=self.link.send_back(|_| Msg::Hover(Hovered::None))
+                onmouseover=self.link.send_back(|_| Msg::Hover(Hovered::List))
             >
                 <div class="list">
                     {self.view_header()}
@@ -89,7 +89,7 @@ impl Component for List {
 }
 
 impl List {
-    fn view_header(&self) -> Html<Self> {
+    fn view_header(&self) -> Html {
         html! {{
             for self.props.children.iter().filter(|c| match c.props {
                 Variants::Header(_) => true,
@@ -98,7 +98,7 @@ impl List {
         }}
     }
 
-    fn view_items(&self) -> Html<Self> {
+    fn view_items(&self) -> Html {
         html! {{
             for self.props.children.iter().filter(|c| match &c.props {
                 Variants::Item(props) => !props.hide,
@@ -112,7 +112,7 @@ impl List {
         }}
     }
 
-    fn view_last_hovered(&self) -> Html<Self> {
+    fn view_last_hovered(&self) -> Html {
         html! {
             <div class="last-hovered">
                 { "Last hovered:"}
@@ -139,24 +139,23 @@ impl fmt::Display for Hovered {
     }
 }
 
-impl<CHILD> From<VChild<CHILD, List>> for ListVariant
+impl<CHILD> From<VChild<CHILD>> for ListVariant
 where
     CHILD: Component,
     CHILD::Properties: Into<Variants>,
 {
-    fn from(vchild: VChild<CHILD, List>) -> Self {
+    fn from(vchild: VChild<CHILD>) -> Self {
         ListVariant {
             props: vchild.props.into(),
-            scope: vchild.scope,
         }
     }
 }
 
-impl Into<VNode<List>> for ListVariant {
-    fn into(self) -> VNode<List> {
+impl Into<VNode> for ListVariant {
+    fn into(self) -> VNode {
         match self.props {
-            Variants::Header(props) => VComp::new::<ListHeader>(props, self.scope).into(),
-            Variants::Item(props) => VComp::new::<ListItem>(props, self.scope).into(),
+            Variants::Header(props) => VComp::new::<ListHeader>(props, NodeRef::default()).into(),
+            Variants::Item(props) => VComp::new::<ListItem>(props, NodeRef::default()).into(),
         }
     }
 }

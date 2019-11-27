@@ -3,6 +3,7 @@ use yew::html::Children;
 use yew::prelude::*;
 
 pub struct ListItem {
+    link: ComponentLink<Self>,
     props: Props,
 }
 
@@ -13,7 +14,7 @@ pub struct Props {
     pub on_hover: Callback<Hovered>,
     #[props(required)]
     pub name: String,
-    pub children: Children<ListItem>,
+    pub children: Children,
 }
 
 pub enum Msg {
@@ -24,8 +25,8 @@ impl Component for ListItem {
     type Message = Msg;
     type Properties = Props;
 
-    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
-        ListItem { props }
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        ListItem { link, props }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -39,9 +40,10 @@ impl Component for ListItem {
         false
     }
 
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
+        let onmouseover = self.link.send_back(|_| Msg::Hover);
         html! {
-            <div class="list-item" onmouseover=|_| Msg::Hover>
+            <div class="list-item" onmouseover=onmouseover>
                 { &self.props.name }
                 { self.view_details() }
             </div>
@@ -50,7 +52,7 @@ impl Component for ListItem {
 }
 
 impl ListItem {
-    fn view_details(&self) -> Html<Self> {
+    fn view_details(&self) -> Html {
         if self.props.children.is_empty() {
             return html! {};
         }
