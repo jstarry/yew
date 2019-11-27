@@ -1,7 +1,7 @@
 use super::Hovered;
-use crate::{header::Props as HeaderProps, ListHeader};
-use crate::{item::Props as ItemProps, ListItem};
-use yew::html::{ChildrenRenderer};
+use crate::{header::ListHeader, header::Props as HeaderProps};
+use crate::{item::ListItem, item::Props as ItemProps};
+use yew::html::ChildrenRenderer;
 use yew::prelude::*;
 use yew::virtual_dom::{VChild, VComp, VNode};
 
@@ -50,18 +50,13 @@ impl Component for List {
     type Properties = Props;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        List {
-            link,
-            props,
-        }
+        List { link, props }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::Hover(hovered) => {
-                self.props
-                    .on_hover
-                    .emit(hovered);
+                self.props.on_hover.emit(hovered);
             }
         }
         false
