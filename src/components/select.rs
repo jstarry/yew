@@ -103,7 +103,23 @@ where
             }
         };
 
-        let onchange = self.link.send_back(|event| match event {
+        html! {
+            <select disabled=self.props.disabled onchange=self.onchange()>
+                <option disabled=true selected=selected.is_none()>
+                    { "↪" }
+                </option>
+                { for self.props.options.iter().map(view_option) }
+            </select>
+        }
+    }
+}
+
+impl<T> Select<T>
+where
+    T: ToString + PartialEq + Clone + 'static,
+{
+    fn onchange(&self) -> Callback<ChangeData> {
+        self.link.send_back(|event| match event {
             ChangeData::Select(elem) => {
                 let value = elem.selected_index().map(|x| x as usize);
                 Msg::Selected(value)
@@ -111,15 +127,6 @@ where
             _ => {
                 unreachable!();
             }
-        });
-
-        html! {
-            <select disabled=self.props.disabled onchange=onchange>
-                <option disabled=true selected=selected.is_none()>
-                    { "↪" }
-                </option>
-                { for self.props.options.iter().map(view_option) }
-            </select>
-        }
+        })
     }
 }

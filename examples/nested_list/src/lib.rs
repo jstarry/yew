@@ -58,24 +58,24 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let on_hover = self.link.send_back(Msg::Hover);
-        let onmouseenter = self.link.send_back(|_| Msg::Hover(Hovered::None));
+        let on_hover = &self.link.send_back(Msg::Hover);
+        let onmouseenter = &self.link.send_back(|_| Msg::Hover(Hovered::None));
         html! {
             <div class="main" onmouseenter=onmouseenter>
                 <h1>{ "Nested List Demo" }</h1>
-                <List on_hover=on_hover.clone()>
-                    <ListHeader text="Calling all Rusties!" on_hover=on_hover.clone() />
-                    <ListItem name="Rustin" on_hover=on_hover.clone() />
-                    <ListItem hide={true} name="Rustaroo" on_hover=on_hover.clone() />
-                    <ListItem name="Rustifer" on_hover=on_hover.clone()>
+                <List on_hover=on_hover>
+                    <ListHeader text="Calling all Rusties!" on_hover=on_hover />
+                    <ListItem name="Rustin" on_hover=on_hover />
+                    <ListItem hide={true} name="Rustaroo" on_hover=on_hover />
+                    <ListItem name="Rustifer" on_hover=on_hover>
                         <div class="sublist">{"Sublist!"}</div>
                         {
                             html! {
-                                <List on_hover=on_hover.clone()>
-                                    <ListHeader text="Sub Rusties!" on_hover=on_hover.clone() />
-                                    <ListItem name="Sub Rustin" on_hover=on_hover.clone() />
-                                    <ListItem hide={true} name="Sub Rustaroo" on_hover=on_hover.clone() />
-                                    <ListItem name="Sub Rustifer" on_hover=on_hover.clone() />
+                                <List on_hover=on_hover>
+                                    <ListHeader text="Sub Rusties!" on_hover=on_hover />
+                                    <ListItem name="Sub Rustin" on_hover=on_hover />
+                                    <ListItem hide={true} name="Sub Rustaroo" on_hover=on_hover />
+                                    <ListItem name="Sub Rustifer" on_hover=on_hover />
                                 </List>
                             }
                         }

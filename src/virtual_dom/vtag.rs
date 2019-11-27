@@ -532,3 +532,24 @@ pub(crate) fn not<T>(option: &Option<T>) -> &Option<()> {
         &Some(())
     }
 }
+
+/// Transforms properties and attaches a parent scope holder to callbacks for sending messages.
+pub trait Transformer<FROM, TO> {
+    /// Transforms one type to another.
+    fn transform(from: FROM) -> TO;
+}
+
+impl<T> Transformer<T, T> for VTag {
+    fn transform(from: T) -> T {
+        from
+    }
+}
+
+impl<'a, T> Transformer<&'a T, T> for VTag
+where
+    T: Clone,
+{
+    fn transform(from: &'a T) -> T {
+        from.clone()
+    }
+}

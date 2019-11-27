@@ -126,7 +126,11 @@ impl Parse for TagAttributes {
             let name = listener.label.name;
             let callback = listener.value;
             listeners.push(quote_spanned! {name.span()=>
-                ::yew::html::#name::Wrapper::new(#callback)
+                ::yew::html::#name::Wrapper::new(
+                    <::yew::virtual_dom::vtag::VTag as ::yew::virtual_dom::vtag::Transformer<_, _>>::transform(
+                        #callback
+                    )
+                )
             });
         }
 

@@ -208,6 +208,7 @@ pub type Children = ChildrenRenderer<Html>;
 pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;
 
 /// A type used for rendering children html.
+#[derive(Clone)]
 pub struct ChildrenRenderer<T> {
     children: Vec<T>,
 }
