@@ -20,7 +20,6 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
 pub type ScopeHolder<PARENT> = Rc<RefCell<Option<Scope<PARENT>>>>;
 
 /// A context which allows sending messages to a component.
-#[derive(Clone)]
 pub struct Scope<COMP: Component> {
     shared_state: Shared<ComponentState<COMP>>,
 }
@@ -178,8 +177,8 @@ impl<COMP: Component> CreatedState<COMP> {
     }
 
     fn update(mut self) -> Self {
-        let vnode = self.component.render();
-        let node = vnode.apply(&self.element, None, self.last_frame, self.scope.clone());
+        let mut vnode = self.component.render();
+        let node = vnode.apply(&self.element, None, self.last_frame);
         self.node_ref.set(node);
         self.last_frame = Some(vnode);
         self

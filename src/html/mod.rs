@@ -51,7 +51,7 @@ pub trait Component: Sized + 'static {
         TypeId::of::<Self::Properties>() != TypeId::of::<()>()
     }
     /// Called by rendering loop.
-    fn view(&self) -> Html<Self>;
+    fn view(&self) -> Html;
     /// Called for finalization on the final point of the component's lifetime.
     fn destroy(&mut self) {} // TODO Replace with `Drop`
 }
@@ -69,7 +69,7 @@ pub type Html = VNode;
 ///# use yew::{Children, Html, Properties, Component, ComponentLink, html};
 ///# #[derive(Properties)]
 ///# struct WrapperProps {
-///#     children: Children<Wrapper>,
+///#     children: Children,
 ///# }
 ///# struct Wrapper;
 ///# impl Component for Wrapper{
@@ -78,7 +78,7 @@ pub type Html = VNode;
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
 ///#     // This is not a valid implementation.  This is done for space convenience.
-///#     fn view(&self) -> Html<Self> {
+///#     fn view(&self) -> Html {
 /// html! {
 ///     <Wrapper>
 ///         <h4>{ "Hi" }</h4>
@@ -97,7 +97,7 @@ pub type Html = VNode;
 ///# use yew::{Children, Html, Properties, Renderable, Component, ComponentLink, html};
 /// #[derive(Properties)]
 /// struct WrapperProps {
-///     children: Children<Wrapper>,
+///     children: Children,
 /// }
 ///
 ///# struct Wrapper {props: WrapperProps};
@@ -107,7 +107,7 @@ pub type Html = VNode;
 ///#     type Properties = WrapperProps;
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///     fn view(&self) -> Html<Wrapper> {
+///     fn view(&self) -> Html {
 ///         html! {
 ///             <div id="container">
 ///                 { self.props.children.render() }
@@ -116,7 +116,7 @@ pub type Html = VNode;
 ///     }
 /// }
 /// ```
-pub type Children<COMP> = ChildrenRenderer<Html<COMP>>;
+pub type Children = ChildrenRenderer<Html>;
 
 /// A type used for accepting children elements in Component::Properties and accessing their props.
 ///
@@ -137,7 +137,7 @@ pub type Children<COMP> = ChildrenRenderer<Html<COMP>>;
 ///#     type Properties = ListProps;
 ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html<List> {unimplemented!()}
+///#     fn view(&self) -> Html {unimplemented!()}
 ///# }
 ///# #[derive(Properties)]
 ///# struct ListItemProps {
@@ -149,9 +149,9 @@ pub type Children<COMP> = ChildrenRenderer<Html<COMP>>;
 ///#     type Properties = ListItemProps;
 ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html<Self> {unimplemented!()}
+///#     fn view(&self) -> Html {unimplemented!()}
 ///# }
-///# fn view() -> Html<List> {
+///# fn view() -> Html {
 /// html!{
 ///   <List>
 ///     <ListItem value="a" />
@@ -181,7 +181,7 @@ pub type Children<COMP> = ChildrenRenderer<Html<COMP>>;
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
 ///     // ...
-///     fn view(&self) -> Html<Self> {
+///     fn view(&self) -> Html {
 ///         html!{{
 ///             for self.props.children.iter().map(|mut item| {
 ///                 item.props.value = format!("item-{}", item.props.value);
@@ -202,7 +202,7 @@ pub type Children<COMP> = ChildrenRenderer<Html<COMP>>;
 ///#     type Properties = ListItemProps;
 ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html<ListItem> {unimplemented!()}
+///#     fn view(&self) -> Html {unimplemented!()}
 ///# }
 /// ```
 pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;
@@ -261,11 +261,11 @@ impl<T> fmt::Debug for ChildrenRenderer<T> {
     }
 }
 
-impl<COMP: Component, T> Renderable<COMP> for ChildrenRenderer<T>
+impl<T> Renderable for ChildrenRenderer<T>
 where
     T: Into<VNode>,
 {
-    fn render(&self) -> Html<COMP> {
+    fn render(&self) -> Html {
         VList {
             no_siblings: true,
             children: self.iter().map(|c| c.into()).collect(),
@@ -308,7 +308,7 @@ where
 ///         false
 ///     }
 ///
-///     fn view(&self) -> Html<Self> {
+///     fn view(&self) -> Html {
 ///         html! {
 ///             <input ref=self.node_ref.clone() type="text" />
 ///         }
@@ -335,13 +335,13 @@ impl NodeRef {
 }
 
 /// Trait for rendering virtual DOM elements
-pub trait Renderable<COMP: Component> {
+pub trait Renderable {
     /// Called by rendering loop.
-    fn render(&self) -> Html<COMP>;
+    fn render(&self) -> Html;
 }
 
-impl<COMP: Component> Renderable<COMP> for COMP {
-    fn render(&self) -> Html<COMP> {
+impl<COMP: Component> Renderable for COMP {
+    fn render(&self) -> Html {
         self.view()
     }
 }

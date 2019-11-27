@@ -167,13 +167,10 @@ pub trait VDiff {
     ///
     /// The exception to this is obviously `VRef` which simply uses the inner `Node` directly
     /// (always removes the `Node` that exists).
-    fn apply<COMP>(
+    fn apply(
         &mut self,
         parent: &Element,
         previous_sibling: Option<&Node>,
         ancestor: Option<VNode>,
-        parent_scope: Scope<COMP>,
-    ) -> Option<Node>
-    where
-        COMP: Component;
+    ) -> Option<Node>;
 }

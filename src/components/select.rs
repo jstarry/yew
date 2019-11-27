@@ -14,7 +14,7 @@
 //!#     type Message = ();type Properties = ();
 //!#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 //!#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-//!#     fn view(&self) -> Html<Model> {unimplemented!()}}
+//!#     fn view(&self) -> Html {unimplemented!()}}
 //! impl ToString for Scene {
 //!     fn to_string(&self) -> String {
 //!         match self {
@@ -24,7 +24,7 @@
 //!     }
 //! }
 //!
-//! fn view() -> Html<Model> {
+//! fn view() -> Html {
 //!     let scenes = vec![Scene::First, Scene::Second];
 //!     html! {
 //!         <Select<Scene> options=scenes onchange=|_| () />
@@ -93,7 +93,7 @@ where
         true
     }
 
-    fn view(&self) -> Html<Self> {
+    fn view(&self) -> Html {
         let selected = self.props.selected.as_ref();
         let view_option = |value: &T| {
             let flag = selected == Some(value);
