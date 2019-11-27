@@ -16,9 +16,6 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     Properties(COMP::Properties),
 }
 
-/// A reference to the parent's scope which will be used later to send messages.
-pub type ScopeHolder<PARENT> = Rc<RefCell<Option<Scope<PARENT>>>>;
-
 /// A context which allows sending messages to a component.
 pub struct Scope<COMP: Component> {
     shared_state: Shared<ComponentState<COMP>>,
@@ -62,7 +59,6 @@ impl<COMP: Component> Scope<COMP> {
         let mut scope = self.clone();
         let link = ComponentLink::connect(&scope);
         let ready_state = ReadyState {
-            scope: self.clone(),
             element,
             node_ref,
             link,
@@ -90,7 +86,7 @@ impl<COMP: Component> Scope<COMP> {
     }
 
     /// Schedules a task to send a message or new props to a component
-    pub(crate) fn update(&mut self, update: ComponentUpdate<COMP>) {
+    pub(crate) fn update(&self, update: ComponentUpdate<COMP>) {
         let update = UpdateComponent {
             shared_state: self.shared_state.clone(),
             update,
@@ -106,12 +102,12 @@ impl<COMP: Component> Scope<COMP> {
     }
 
     /// Send a message to the component
-    pub fn send_message(&mut self, msg: COMP::Message) {
+    pub fn send_message(&self, msg: COMP::Message) {
         self.update(ComponentUpdate::Message(msg));
     }
 
     /// Send a batch of messages to the component
-    pub fn send_message_batch(&mut self, messages: Vec<COMP::Message>) {
+    pub fn send_message_batch(&self, messages: Vec<COMP::Message>) {
         self.update(ComponentUpdate::MessageBatch(messages));
     }
 }
@@ -138,7 +134,6 @@ impl<COMP: Component> fmt::Display for ComponentState<COMP> {
 }
 
 struct ReadyState<COMP: Component> {
-    scope: Scope<COMP>,
     element: Element,
     node_ref: NodeRef,
     props: COMP::Properties,
@@ -150,7 +145,6 @@ impl<COMP: Component> ReadyState<COMP> {
     fn create(self) -> CreatedState<COMP> {
         CreatedState {
             component: COMP::create(self.props, self.link),
-            scope: self.scope,
             element: self.element,
             last_frame: self.ancestor,
             node_ref: self.node_ref,
@@ -159,7 +153,6 @@ impl<COMP: Component> ReadyState<COMP> {
 }
 
 struct CreatedState<COMP: Component> {
-    scope: Scope<COMP>,
     element: Element,
     component: COMP,
     last_frame: Option<VNode>,

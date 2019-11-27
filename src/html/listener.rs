@@ -14,47 +14,35 @@ macro_rules! impl_action {
             use stdweb::web::event::{IEvent, $type};
             use super::*;
 
-            /// A wrapper for a callback.
-            /// Listener extracted from here when attached.
-            #[allow(missing_debug_implementations)]
-            pub struct Wrapper<COMP: Component, F>{
-                handler: Option<F>,
-                scope_holder: ScopeHolder<COMP>,
-            }
-
             /// And event type which keeps the returned type.
             pub type Event = $ret;
 
-            impl<COMP, F> Wrapper<COMP, F>
-                where COMP: Component, F: Fn($ret) -> COMP::Message + 'static,
-            {
-                pub fn new(handler: F,scope_holder: ScopeHolder<COMP>) -> Self {
-                    Wrapper{
-                        handler: Some(handler),
-                        scope_holder,
-                    }
+            /// A wrapper for a callback.
+            /// Listener extracted from here when attached.
+            #[allow(missing_debug_implementations)]
+            pub struct Wrapper {
+                callback: Callback<Event>,
+            }
+
+            impl Wrapper {
+                pub fn new(callback: Callback<Event>) -> Self {
+                    Wrapper { callback }
                 }
             }
 
-            impl<COMP, F> Listener for Wrapper<COMP, F>
-            where
-                COMP: Component,
-                F: Fn($ret) -> COMP::Message + 'static,
-            {
+            impl Listener for Wrapper {
                 fn kind(&self) -> &'static str {
                     stringify!($action)
                 }
 
                 fn attach(&mut self, element: &Element)
                     -> EventListenerHandle {
-                    let handler = self.handler.take().expect("tried to attach listener twice");
-                    let mut scope = self.scope_holder.borrow().clone().expect("scope hasn't been set by parent");
                     let this = element.clone();
+                    let callback = self.callback.clone();
                     let listener = move |event: $type| {
                         event.stop_propagation();
                         let handy_event: $ret = $convert(&this, event);
-                        let msg = handler(handy_event);
-                        scope.send_message(msg);
+                        callback.emit(handy_event);
                     };
                     element.add_event_listener(listener)
                 }

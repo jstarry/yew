@@ -38,8 +38,9 @@ use crate::macros::{html, Properties};
 
 /// `Select` component.
 #[derive(Debug)]
-pub struct Select<T> {
+pub struct Select<T: ToString + PartialEq + Clone + 'static> {
     props: Props<T>,
+    link: ComponentLink<Self>,
 }
 
 /// Internal message of the component.
@@ -70,8 +71,8 @@ where
     type Message = Msg;
     type Properties = Props<T>;
 
-    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
-        Self { props }
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self { props, link }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -101,19 +102,19 @@ where
                 <option selected=flag>{ value.to_string() }</option>
             }
         };
+
+        let onchange = self.link.send_back(|event| match event {
+            ChangeData::Select(elem) => {
+                let value = elem.selected_index().map(|x| x as usize);
+                Msg::Selected(value)
+            }
+            _ => {
+                unreachable!();
+            }
+        });
+
         html! {
-            <select disabled=self.props.disabled
-                    onchange=|event| {
-                        match event {
-                            ChangeData::Select(elem) => {
-                                let value = elem.selected_index().map(|x| x as usize);
-                                Msg::Selected(value)
-                            }
-                            _ => {
-                                unreachable!();
-                            }
-                        }
-                    }>
+            <select disabled=self.props.disabled onchange=onchange>
                 <option disabled=true selected=selected.is_none()>
                     { "↪" }
                 </option>

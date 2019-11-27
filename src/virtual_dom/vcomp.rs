@@ -1,8 +1,7 @@
 //! This module contains the implementation of a virtual component `VComp`.
 
 use super::{VDiff, VNode};
-use crate::callback::Callback;
-use crate::html::{Component, ComponentUpdate, HiddenScope, NodeRef, Scope, ScopeHolder};
+use crate::html::{Component, ComponentUpdate, HiddenScope, NodeRef, Scope};
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::fmt;
@@ -114,77 +113,6 @@ impl VComp {
                 generator: Box::new(generator),
             }))),
         }
-    }
-}
-
-/// Transforms properties and attaches a parent scope holder to callbacks for sending messages.
-pub trait Transformer<PARENT: Component, FROM, TO> {
-    /// Transforms one type to another.
-    fn transform(scope_holder: ScopeHolder<PARENT>, from: FROM) -> TO;
-}
-
-impl<PARENT, T> Transformer<PARENT, T, T> for VComp
-where
-    PARENT: Component,
-{
-    fn transform(_: ScopeHolder<PARENT>, from: T) -> T {
-        from
-    }
-}
-
-impl<'a, PARENT, T> Transformer<PARENT, &'a T, T> for VComp
-where
-    PARENT: Component,
-    T: Clone,
-{
-    fn transform(_: ScopeHolder<PARENT>, from: &'a T) -> T {
-        from.clone()
-    }
-}
-
-impl<'a, PARENT> Transformer<PARENT, &'a str, String> for VComp
-where
-    PARENT: Component,
-{
-    fn transform(_: ScopeHolder<PARENT>, from: &'a str) -> String {
-        from.to_owned()
-    }
-}
-
-impl<'a, PARENT, F, IN> Transformer<PARENT, F, Callback<IN>> for VComp
-where
-    PARENT: Component,
-    F: Fn(IN) -> PARENT::Message + 'static,
-{
-    fn transform(scope: ScopeHolder<PARENT>, from: F) -> Callback<IN> {
-        let callback = move |arg| {
-            let msg = from(arg);
-            if let Some(ref mut sender) = *scope.borrow_mut() {
-                sender.send_message(msg);
-            } else {
-                // panic!("Parent component hasn't activated this callback yet");
-                log::error!("Parent component hasn't activated this callback yet");
-            }
-        };
-        callback.into()
-    }
-}
-
-impl<'a, PARENT, F, IN> Transformer<PARENT, F, Option<Callback<IN>>> for VComp
-where
-    PARENT: Component,
-    F: Fn(IN) -> PARENT::Message + 'static,
-{
-    fn transform(scope: ScopeHolder<PARENT>, from: F) -> Option<Callback<IN>> {
-        let callback = move |arg| {
-            let msg = from(arg);
-            if let Some(ref mut sender) = *scope.borrow_mut() {
-                sender.send_message(msg);
-            } else {
-                panic!("Parent component hasn't activated this callback yet");
-            }
-        };
-        Some(callback.into())
     }
 }
 
@@ -301,6 +229,33 @@ impl VDiff for VComp {
                 None
             }
         }
+    }
+}
+
+/// Transforms properties and attaches a parent scope holder to callbacks for sending messages.
+pub trait Transformer<FROM, TO> {
+    /// Transforms one type to another.
+    fn transform(from: FROM) -> TO;
+}
+
+impl<T> Transformer<T, T> for VComp {
+    fn transform(from: T) -> T {
+        from
+    }
+}
+
+impl<'a, T> Transformer<&'a T, T> for VComp
+where
+    T: Clone,
+{
+    fn transform(from: &'a T) -> T {
+        from.clone()
+    }
+}
+
+impl<'a> Transformer<&'a str, String> for VComp {
+    fn transform(from: &'a str) -> String {
+        from.to_owned()
     }
 }
 
