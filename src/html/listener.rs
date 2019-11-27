@@ -25,6 +25,7 @@ macro_rules! impl_action {
             }
 
             impl Wrapper {
+                /// Create a wrapper for an event-typed callback
                 pub fn new(callback: Callback<Event>) -> Self {
                     Wrapper { callback }
                 }
@@ -35,7 +36,6 @@ macro_rules! impl_action {
                     stringify!($action)
                 }
 
-                // TODO think about preventing double attach
                 fn attach(&self, element: &Element)
                     -> EventListenerHandle {
                     let this = element.clone();

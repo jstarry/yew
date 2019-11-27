@@ -533,7 +533,7 @@ pub(crate) fn not<T>(option: &Option<T>) -> &Option<()> {
     }
 }
 
-/// Transforms properties and attaches a parent scope holder to callbacks for sending messages.
+/// Transform properties to the expected type.
 pub trait Transformer<FROM, TO> {
     /// Transforms one type to another.
     fn transform(from: FROM) -> TO;
