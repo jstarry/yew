@@ -7,7 +7,7 @@ pub struct ListItem {
     props: Props,
 }
 
-#[derive(Properties)]
+#[derive(Clone, Properties)]
 pub struct Props {
     pub hide: bool,
     #[props(required)]

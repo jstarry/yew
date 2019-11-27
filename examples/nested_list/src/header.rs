@@ -6,7 +6,7 @@ pub struct ListHeader {
     props: Props,
 }
 
-#[derive(Properties)]
+#[derive(Clone, Properties)]
 pub struct Props {
     #[props(required)]
     pub on_hover: Callback<Hovered>,

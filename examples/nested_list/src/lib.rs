@@ -68,10 +68,15 @@ impl Component for Model {
                     <ListItem name="Rustin" on_hover=on_hover.clone() />
                     <ListItem hide={true} name="Rustaroo" on_hover=on_hover.clone() />
                     <ListItem name="Rustifer" on_hover=on_hover.clone()>
-                        <span>{"Hello!"}</span>
+                        <div class="sublist">{"Sublist!"}</div>
                         {
                             html! {
-                                <ListHeader text="Sub Header" on_hover=on_hover.clone() />
+                                <List on_hover=on_hover.clone()>
+                                    <ListHeader text="Sub Rusties!" on_hover=on_hover.clone() />
+                                    <ListItem name="Sub Rustin" on_hover=on_hover.clone() />
+                                    <ListItem hide={true} name="Sub Rustaroo" on_hover=on_hover.clone() />
+                                    <ListItem name="Sub Rustifer" on_hover=on_hover.clone() />
+                                </List>
                             }
                         }
                     </ListItem>

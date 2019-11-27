@@ -5,6 +5,7 @@ use yew::html::{ChildrenRenderer};
 use yew::prelude::*;
 use yew::virtual_dom::{VChild, VComp, VNode};
 
+#[derive(Clone)]
 pub enum Variants {
     Item(<ListItem as Component>::Properties),
     Header(<ListHeader as Component>::Properties),
@@ -22,11 +23,12 @@ impl From<HeaderProps> for Variants {
     }
 }
 
+#[derive(Clone)]
 pub struct ListVariant {
     props: Variants,
 }
 
-#[derive(Properties)]
+#[derive(Clone, Properties)]
 pub struct Props {
     #[props(required)]
     pub children: ChildrenRenderer<ListVariant>,
