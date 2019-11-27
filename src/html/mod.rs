@@ -209,48 +209,43 @@ pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;
 
 /// A type used for rendering children html.
 pub struct ChildrenRenderer<T> {
-    len: usize,
-    boxed_render: Box<dyn Fn() -> Vec<T>>,
+    children: Vec<T>,
 }
 
 impl<T> ChildrenRenderer<T>
 where
-    T: Into<VNode>,
+    T: Clone + Into<VNode>,
 {
     /// Create children
-    pub fn new(len: usize, boxed_render: Box<dyn Fn() -> Vec<T>>) -> Self {
-        Self { len, boxed_render }
+    pub fn new(children: Vec<T>) -> Self {
+        Self { children }
     }
 
     /// Children list is empty
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.children.is_empty()
     }
 
     /// Number of children elements
     pub fn len(&self) -> usize {
-        self.len
+        self.children.len()
     }
 
     /// Build children components and return `Vec`
     pub fn to_vec(&self) -> Vec<T> {
-        (&self.boxed_render)()
+        self.children.clone()
     }
 
     /// Render children components and return `Iterator`
     pub fn iter(&self) -> impl Iterator<Item = T> {
-        (&self.boxed_render)().into_iter()
+        self.children.clone().into_iter()
     }
 }
 
 impl<T> Default for ChildrenRenderer<T> {
     fn default() -> Self {
-        // False positive: https://github.com/rust-lang/rust-clippy/issues/4002
-        #[allow(clippy::redundant_closure)]
-        let boxed_render = Box::new(|| Vec::new());
         Self {
-            len: 0,
-            boxed_render,
+            children: Vec::new(),
         }
     }
 }
@@ -263,7 +258,7 @@ impl<T> fmt::Debug for ChildrenRenderer<T> {
 
 impl<T> Renderable for ChildrenRenderer<T>
 where
-    T: Into<VNode>,
+    T: Clone + Into<VNode>,
 {
     fn render(&self) -> Html {
         VList {
