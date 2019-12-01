@@ -153,8 +153,8 @@ pub mod prelude {
     pub use crate::callback::Callback;
     pub use crate::events::*;
     pub use crate::html::{
-        Children, ChildrenWithProps, Component, ComponentLink, Href, Html, NodeRef, Properties,
-        Renderable, ShouldRender, FromProps,
+        Children, ChildrenWithProps, Component, ComponentLink, FromProps, Href, Html, NodeRef,
+        Properties, Renderable, ShouldRender,
     };
     pub use crate::macros::*;
     pub use crate::virtual_dom::Classes;

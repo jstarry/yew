@@ -142,9 +142,9 @@ impl<COMP: Component> ReadyState<COMP> {
     fn create(self, shared_state: Shared<ComponentState<COMP>>) -> CreatedState<COMP> {
         let component = COMP::create(self.props.clone());
         super::COMPONENTS.with(|components| {
-            components.borrow_mut().insert(component.get_id(), Scope {
-                shared_state,
-            }.into());
+            components
+                .borrow_mut()
+                .insert(component.get_id(), Scope { shared_state }.into());
         });
 
         CreatedState {
@@ -219,7 +219,9 @@ where
     fn run(self: Box<Self>) {
         let current_state = self.shared_state.replace(ComponentState::Processing);
         self.shared_state.replace(match current_state {
-            ComponentState::Ready(state) => ComponentState::Created(state.create(self.shared_state.clone()).update()),
+            ComponentState::Ready(state) => {
+                ComponentState::Created(state.create(self.shared_state.clone()).update())
+            }
             ComponentState::Created(_) | ComponentState::Destroyed => current_state,
             ComponentState::Empty | ComponentState::Processing => {
                 panic!("unexpected component state: {}", current_state);

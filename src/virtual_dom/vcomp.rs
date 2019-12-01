@@ -55,7 +55,10 @@ where
 {
     /// Creates a child component that can be accessed and modified by its parent.
     pub fn new(props: COMP::Properties, node_ref: NodeRef) -> Self {
-        Self { props: Rc::new(props), node_ref }
+        Self {
+            props: Rc::new(props),
+            node_ref,
+        }
     }
 }
 

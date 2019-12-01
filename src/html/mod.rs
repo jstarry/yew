@@ -14,9 +14,9 @@ use crate::callback::Callback;
 use crate::virtual_dom::{VChild, VList, VNode};
 use std::any::TypeId;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use std::collections::HashMap;
 use stdweb::unstable::TryFrom;
 use stdweb::web::Node;
 
@@ -48,37 +48,6 @@ fn next_id() -> ComponentId {
     })
 }
 
-// pub struct Yew {
-//     id: u32,
-// }
-//
-// use std::ops::{Deref, DerefMut};
-// impl<COMP> Deref for Yew<COMP> {
-//     type Target = COMP;
-//
-//     fn deref(&self) -> &Self::Target {
-//         &self.comp
-//     }
-// }
-//
-// impl<COMP> DerefMut for Yew<COMP> {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.comp
-//     }
-// }
-//
-// impl Yew {
-//     pub fn new() -> Self {
-//         Self { id: next_id() }
-//     }
-// }
-//
-// impl<COMP> Identifiable for Yew<COMP> {
-//     fn get_id(&self) -> u32 {
-//         self.id
-//     }
-// }
-
 pub trait Identifiable {
     fn get_id(&self) -> ComponentId;
 }
@@ -95,7 +64,10 @@ pub trait FromProps<PROPS> {
     fn from_props(props: &PROPS) -> Self;
 }
 
-impl<PROPS, T> FromProps<PROPS> for T where T: Default {
+impl<PROPS, T> FromProps<PROPS> for T
+where
+    T: Default,
+{
     fn from_props(_props: &PROPS) -> T {
         T::default()
     }
@@ -127,7 +99,11 @@ pub trait Component: _Component + Identifiable + Sized + 'static {
     /// Get a link
     fn link(&self) -> ComponentLink<Self> {
         COMPONENTS.with(|components| {
-            let scope: Scope<Self> = components.borrow_mut().remove(&self.get_id()).unwrap().into();
+            let scope: Scope<Self> = components
+                .borrow_mut()
+                .remove(&self.get_id())
+                .unwrap()
+                .into();
             let link = ComponentLink::connect(&scope);
             components.borrow_mut().insert(self.get_id(), scope.into());
             link
@@ -138,11 +114,10 @@ pub trait Component: _Component + Identifiable + Sized + 'static {
     where
         F: Fn(IN) -> Self::Message + 'static,
     {
-        self.link().send_back(function)
+        self.link().callback(function)
     }
     /// Called for finalization on the final point of the component's lifetime.
-    fn destroy(&mut self) {
-    } // TODO Replace with `Drop`
+    fn destroy(&mut self) {} // TODO Replace with `Drop`
 }
 
 /// A type which expected as a result of `view` function implementation.

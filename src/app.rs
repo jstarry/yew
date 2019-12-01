@@ -2,8 +2,8 @@
 //! a component in an isolated scope.
 
 use crate::html::{Component, NodeRef, Scope};
-use stdweb::web::{document, Element, INode, IParentNode};
 use std::rc::Rc;
+use stdweb::web::{document, Element, INode, IParentNode};
 
 /// An application instance.
 #[derive(Debug)]
@@ -33,12 +33,8 @@ where
     /// use the `mount_with_props` method.
     pub fn mount(self, element: Element) -> Scope<COMP> {
         clear_element(&element);
-        self.scope.mount_in_place(
-            element,
-            None,
-            NodeRef::default(),
-            Rc::default(),
-        )
+        self.scope
+            .mount_in_place(element, None, NodeRef::default(), Rc::default())
     }
 
     /// Alias to `mount("body", ...)`.
@@ -67,12 +63,8 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
-            html_element,
-            None,
-            NodeRef::default(),
-            Rc::default(),
-        )
+        self.scope
+            .mount_in_place(html_element, None, NodeRef::default(), Rc::default())
     }
 }
 
