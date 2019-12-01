@@ -124,17 +124,21 @@ pub trait Component: _Component + Identifiable + Sized + 'static {
     }
     /// Called by rendering loop.
     fn view(&self) -> Html;
+    /// Get a link
+    fn link(&self) -> ComponentLink<Self> {
+        COMPONENTS.with(|components| {
+            let scope: Scope<Self> = components.borrow_mut().remove(&self.get_id()).unwrap().into();
+            let link = ComponentLink::connect(&scope);
+            components.borrow_mut().insert(self.get_id(), scope.into());
+            link
+        })
+    }
     /// Create a callback
     fn callback<F, IN>(&self, function: F) -> Callback<IN>
     where
         F: Fn(IN) -> Self::Message + 'static,
     {
-        COMPONENTS.with(|components| {
-            let scope: Scope<Self> = components.borrow_mut().remove(&self.get_id()).unwrap().into();
-            let link: ComponentLink<Self> = ComponentLink::connect(&scope);
-            components.borrow_mut().insert(self.get_id(), scope.into());
-            link.send_back(function)
-        })
+        self.link().send_back(function)
     }
     /// Called for finalization on the final point of the component's lifetime.
     fn destroy(&mut self) {
