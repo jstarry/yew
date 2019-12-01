@@ -101,12 +101,12 @@ impl ToTokens for HtmlComponent {
 
             #[cfg(has_maybe_uninit)]
             let unallocated_prop_ref = quote! {
-                let #prop_ref: <#ty as ::yew::html::Component>::Properties = unsafe { ::std::mem::MaybeUninit::uninit().assume_init() };
+                let #prop_ref: <#ty as ::yew::html::_Component>::Properties = unsafe { ::std::mem::MaybeUninit::uninit().assume_init() };
             };
 
             #[cfg(not(has_maybe_uninit))]
             let unallocated_prop_ref = quote! {
-                let #prop_ref: <#ty as ::yew::html::Component>::Properties = unsafe { ::std::mem::uninitialized() };
+                let #prop_ref: <#ty as ::yew::html::_Component>::Properties = unsafe { ::std::mem::uninitialized() };
             };
 
             quote! {
@@ -139,7 +139,7 @@ impl ToTokens for HtmlComponent {
                 });
 
                 quote! {
-                    <<#ty as ::yew::html::Component>::Properties as ::yew::html::Properties>::builder()
+                    <<#ty as ::yew::html::_Component>::Properties as ::yew::html::Properties>::builder()
                         #(#set_props)*
                         #set_children
                         .build()
@@ -147,7 +147,7 @@ impl ToTokens for HtmlComponent {
             }
             Props::With(WithProps { props, .. }) => quote! { #props },
             Props::None => quote! {
-                <<#ty as ::yew::html::Component>::Properties as ::yew::html::Properties>::builder()
+                <<#ty as ::yew::html::_Component>::Properties as ::yew::html::Properties>::builder()
                     #set_children
                     .build()
             },

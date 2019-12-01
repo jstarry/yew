@@ -16,6 +16,12 @@ pub enum Hovered {
     None,
 }
 
+impl Default for Hovered {
+    fn default() -> Self {
+        Hovered::None
+    }
+}
+
 impl fmt::Display for Hovered {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

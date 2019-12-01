@@ -3,6 +3,7 @@
 
 use crate::html::{Component, NodeRef, Scope};
 use stdweb::web::{document, Element, INode, IParentNode};
+use std::rc::Rc;
 
 /// An application instance.
 #[derive(Debug)]
@@ -36,7 +37,7 @@ where
             element,
             None,
             NodeRef::default(),
-            COMP::Properties::default(),
+            Rc::default(),
         )
     }
 
@@ -70,7 +71,7 @@ where
             html_element,
             None,
             NodeRef::default(),
-            COMP::Properties::default(),
+            Rc::default(),
         )
     }
 }
@@ -92,7 +93,7 @@ where
     pub fn mount_with_props(self, element: Element, props: COMP::Properties) -> Scope<COMP> {
         clear_element(&element);
         self.scope
-            .mount_in_place(element, None, NodeRef::default(), props)
+            .mount_in_place(element, None, NodeRef::default(), Rc::new(props))
     }
 
     /// Alias to `mount_with_props("body", ...)`.
@@ -122,7 +123,7 @@ where
             .remove_child(&body_element)
             .expect("can't remove body child");
         self.scope
-            .mount_in_place(html_element, None, NodeRef::default(), props)
+            .mount_in_place(html_element, None, NodeRef::default(), Rc::new(props))
     }
 }
 

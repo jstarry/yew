@@ -41,7 +41,7 @@ impl ToTokens for HtmlIterable {
         let expr = &self.0;
         let new_tokens = quote_spanned! {expr.span()=> {
             let mut __yew_vlist = ::yew::virtual_dom::VList::default();
-            let __yew_nodes: &mut ::std::iter::Iterator<Item = _> = &mut(#expr);
+            let __yew_nodes: Box<::std::iter::Iterator<Item = _>> = Box::new(#expr);
             for __yew_node in __yew_nodes.into_iter() {
                 __yew_vlist.add_child(__yew_node.into());
             }

@@ -56,8 +56,8 @@
 //!
 
 #![deny(
-    missing_docs,
-    missing_debug_implementations,
+    // missing_docs,
+    // missing_debug_implementations,
     bare_trait_objects,
     anonymous_parameters,
     elided_lifetimes_in_paths
@@ -79,7 +79,7 @@ pub mod macros {
 
 pub mod app;
 pub mod callback;
-pub mod components;
+// pub mod components;
 pub mod format;
 pub mod html;
 pub mod scheduler;
@@ -154,7 +154,7 @@ pub mod prelude {
     pub use crate::events::*;
     pub use crate::html::{
         Children, ChildrenWithProps, Component, ComponentLink, Href, Html, NodeRef, Properties,
-        Renderable, ShouldRender,
+        Renderable, ShouldRender, FromProps,
     };
     pub use crate::macros::*;
     pub use crate::virtual_dom::Classes;

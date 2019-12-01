@@ -1,24 +1,25 @@
 use super::Hovered;
 use crate::{header::ListHeader, header::Props as HeaderProps};
 use crate::{item::ListItem, item::Props as ItemProps};
-use yew::html::ChildrenRenderer;
+use yew::html::{_Component, ChildrenRenderer};
 use yew::prelude::*;
 use yew::virtual_dom::{VChild, VComp, VNode};
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub enum Variants {
-    Item(<ListItem as Component>::Properties),
-    Header(<ListHeader as Component>::Properties),
+    Item(Rc<<ListItem as _Component>::Properties>),
+    Header(Rc<<ListHeader as _Component>::Properties>),
 }
 
-impl From<ItemProps> for Variants {
-    fn from(props: ItemProps) -> Self {
+impl From<Rc<ItemProps>> for Variants {
+    fn from(props: Rc<ItemProps>) -> Self {
         Variants::Item(props)
     }
 }
 
-impl From<HeaderProps> for Variants {
-    fn from(props: HeaderProps) -> Self {
+impl From<Rc<HeaderProps>> for Variants {
+    fn from(props: Rc<HeaderProps>) -> Self {
         Variants::Header(props)
     }
 }
@@ -28,18 +29,18 @@ pub struct ListVariant {
     props: Variants,
 }
 
-#[derive(Clone, Properties)]
-pub struct Props {
-    #[props(required)]
-    pub children: ChildrenRenderer<ListVariant>,
-    #[props(required)]
-    pub on_hover: Callback<Hovered>,
-}
-
-pub struct List {
-    link: ComponentLink<Self>,
-    props: Props,
-}
+// component!(
+//     #[derive(Default)]
+//     pub struct List;
+//
+//     #[derive(Clone, Properties)]
+//     pub struct Props {
+//         #[props(required)]
+//         pub children: ChildrenRenderer<ListVariant>,
+//         #[props(required)]
+//         pub on_hover: Callback<Hovered>,
+//     }
+// )
 
 pub enum Msg {
     Hover(Hovered),
@@ -47,16 +48,11 @@ pub enum Msg {
 
 impl Component for List {
     type Message = Msg;
-    type Properties = Props;
-
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        List { link, props }
-    }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::Hover(hovered) => {
-                self.props.on_hover.emit(hovered);
+                self.props().on_hover.emit(hovered);
             }
         }
         false
@@ -66,8 +62,8 @@ impl Component for List {
         html! {
             <div
                 class="list-container"
-                onmouseout=self.link.callback(|_| Msg::Hover(Hovered::None))
-                onmouseover=self.link.callback(|_| Msg::Hover(Hovered::List))
+                onmouseout=self.callback(|_| Msg::Hover(Hovered::None))
+                onmouseover=self.callback(|_| Msg::Hover(Hovered::List))
             >
                 <div class="list">
                     {self.view_header()}
@@ -83,7 +79,7 @@ impl Component for List {
 impl List {
     fn view_header(&self) -> Html {
         html! {{
-            for self.props.children.iter().filter(|c| match c.props {
+            for self.props().children.iter().filter(|c| match c.props {
                 Variants::Header(_) => true,
                 _ => false
             })
@@ -92,14 +88,9 @@ impl List {
 
     fn view_items(&self) -> Html {
         html! {{
-            for self.props.children.iter().filter(|c| match &c.props {
+            for self.props().children.iter().filter(|c| match &c.props {
                 Variants::Item(props) => !props.hide,
                 _ => false,
-            }).enumerate().map(|(i, mut c)| {
-                if let Variants::Item(ref mut props) = c.props {
-                    props.name = format!("#{} - {}", i + 1, props.name);
-                }
-                c
             })
         }}
     }
@@ -108,7 +99,7 @@ impl List {
 impl<CHILD> From<VChild<CHILD>> for ListVariant
 where
     CHILD: Component,
-    CHILD::Properties: Into<Variants>,
+    Rc<CHILD::Properties>: Into<Variants>,
 {
     fn from(vchild: VChild<CHILD>) -> Self {
         ListVariant {
@@ -125,3 +116,63 @@ impl Into<VNode> for ListVariant {
         }
     }
 }
+
+// Here is the code that will be generated from the new `component!` macro.
+// ========================================================================
+pub struct List {
+    id: ::yew::html::ComponentId,
+    props: ::std::rc::Rc<Props>,
+    state: __yew_List,
+}
+
+impl ::yew::html::_Component for List {
+    type Properties = Props;
+    type State = __yew_List;
+    fn create(props: ::std::rc::Rc<Props>) -> Self {
+        List {
+            id: ::yew::html::ComponentId::next(),
+            state: <__yew_List as ::yew::html::FromProps<Props>>::from_props(&props),
+            props,
+        }
+    }
+    fn update_props(&mut self, props: ::std::rc::Rc<Self::Properties>) {
+        self.props = props;
+    }
+    fn props(&self) -> &Self::Properties {
+        &self.props
+    }
+}
+
+impl ::yew::html::Identifiable for List {
+    fn get_id(&self) -> ::yew::html::ComponentId {
+        self.id
+    }
+}
+
+impl ::std::ops::Deref for List {
+    type Target = __yew_List;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
+impl ::std::ops::DerefMut for List {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state
+    }
+}
+
+#[derive(Clone, Properties)]
+pub struct Props {
+    #[props(required)]
+    pub children: ChildrenRenderer<ListVariant>,
+    #[props(required)]
+    pub on_hover: Callback<Hovered>,
+}
+
+#[derive(Default)]
+#[allow(non_camel_case_types)]
+pub struct __yew_List;
+// ========================================================================
+// End of derived content.

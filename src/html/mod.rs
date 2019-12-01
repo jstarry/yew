@@ -16,6 +16,7 @@ use std::any::TypeId;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+use std::collections::HashMap;
 use stdweb::unstable::TryFrom;
 use stdweb::web::Node;
 
@@ -25,14 +26,85 @@ use std::future::Future;
 /// This type indicates that component should be rendered again.
 pub type ShouldRender = bool;
 
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+pub struct ComponentId(u32);
+impl ComponentId {
+    pub fn next() -> Self {
+        next_id()
+    }
+}
+
+thread_local! {
+    pub static COMPONENTS: Rc<RefCell<HashMap<ComponentId, HiddenScope>>> = Rc::default();
+    static COMPONENT_ID: Rc<RefCell<ComponentId>> = Rc::new(RefCell::new(ComponentId(1)));
+}
+
+fn next_id() -> ComponentId {
+    COMPONENT_ID.with(|id| {
+        let next_id = *id.borrow();
+        log::info!("next id: {}", next_id.0);
+        *id.borrow_mut() = ComponentId(next_id.0 + 1);
+        next_id
+    })
+}
+
+// pub struct Yew {
+//     id: u32,
+// }
+//
+// use std::ops::{Deref, DerefMut};
+// impl<COMP> Deref for Yew<COMP> {
+//     type Target = COMP;
+//
+//     fn deref(&self) -> &Self::Target {
+//         &self.comp
+//     }
+// }
+//
+// impl<COMP> DerefMut for Yew<COMP> {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.comp
+//     }
+// }
+//
+// impl Yew {
+//     pub fn new() -> Self {
+//         Self { id: next_id() }
+//     }
+// }
+//
+// impl<COMP> Identifiable for Yew<COMP> {
+//     fn get_id(&self) -> u32 {
+//         self.id
+//     }
+// }
+
+pub trait Identifiable {
+    fn get_id(&self) -> ComponentId;
+}
+
+pub trait _Component {
+    type Properties: Properties;
+    type State: FromProps<Self::Properties>;
+    fn create(props: Rc<Self::Properties>) -> Self;
+    fn props(&self) -> &Self::Properties;
+    fn update_props(&mut self, props: Rc<Self::Properties>);
+}
+
+pub trait FromProps<PROPS> {
+    fn from_props(props: &PROPS) -> Self;
+}
+
+impl<PROPS, T> FromProps<PROPS> for T where T: Default {
+    fn from_props(_props: &PROPS) -> T {
+        T::default()
+    }
+}
+
 /// An interface of a UI-component. Uses `self` as a model.
-pub trait Component: Sized + 'static {
+pub trait Component: _Component + Identifiable + Sized + 'static {
     /// Control message type which `update` loop get.
     type Message: 'static;
-    /// Properties type of component implementation.
-    type Properties: Properties;
-    /// Initialization routine which could use a context.
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self;
     /// Called after the component has been attached to the VDOM and it is safe to receive messages
     /// from agents but before the browser updates the screen. If true is returned, the view will
     /// be re-rendered and the user will not see the initial render.
@@ -47,13 +119,26 @@ pub trait Component: Sized + 'static {
     /// place in the DOM tree changes, calling this method is unnecessary as the
     /// component is recreated from scratch. It defaults to true if not implemented
     /// and Self::Properties is not the unit type `()`.
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+    fn change(&self, _props: &Self::Properties) -> ShouldRender {
         TypeId::of::<Self::Properties>() != TypeId::of::<()>()
     }
     /// Called by rendering loop.
     fn view(&self) -> Html;
+    /// Create a callback
+    fn callback<F, IN>(&self, function: F) -> Callback<IN>
+    where
+        F: Fn(IN) -> Self::Message + 'static,
+    {
+        COMPONENTS.with(|components| {
+            let scope: Scope<Self> = components.borrow_mut().remove(&self.get_id()).unwrap().into();
+            let link: ComponentLink<Self> = ComponentLink::connect(&scope);
+            components.borrow_mut().insert(self.get_id(), scope.into());
+            link.send_back(function)
+        })
+    }
     /// Called for finalization on the final point of the component's lifetime.
-    fn destroy(&mut self) {} // TODO Replace with `Drop`
+    fn destroy(&mut self) {
+    } // TODO Replace with `Drop`
 }
 
 /// A type which expected as a result of `view` function implementation.
@@ -343,7 +428,7 @@ impl<COMP: Component> Renderable for COMP {
 }
 
 /// Trait for building properties for a component
-pub trait Properties: Clone {
+pub trait Properties {
     /// Builder that will be used to construct properties
     type Builder;
 

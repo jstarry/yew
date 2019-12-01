@@ -13,7 +13,7 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     /// Wraps batch of messages for a component.
     MessageBatch(Vec<COMP::Message>),
     /// Wraps properties for a component.
-    Properties(COMP::Properties),
+    Properties(Rc<COMP::Properties>),
 }
 
 /// A context which allows sending messages to a component.
@@ -54,14 +54,12 @@ impl<COMP: Component> Scope<COMP> {
         element: Element,
         ancestor: Option<VNode>,
         node_ref: NodeRef,
-        props: COMP::Properties,
+        props: Rc<COMP::Properties>,
     ) -> Scope<COMP> {
         let mut scope = self.clone();
-        let link = ComponentLink::connect(&scope);
         let ready_state = ReadyState {
             element,
             node_ref,
-            link,
             props,
             ancestor,
         };
@@ -136,15 +134,21 @@ impl<COMP: Component> fmt::Display for ComponentState<COMP> {
 struct ReadyState<COMP: Component> {
     element: Element,
     node_ref: NodeRef,
-    props: COMP::Properties,
-    link: ComponentLink<COMP>,
+    props: Rc<COMP::Properties>,
     ancestor: Option<VNode>,
 }
 
 impl<COMP: Component> ReadyState<COMP> {
-    fn create(self) -> CreatedState<COMP> {
+    fn create(self, shared_state: Shared<ComponentState<COMP>>) -> CreatedState<COMP> {
+        let component = COMP::create(self.props.clone());
+        super::COMPONENTS.with(|components| {
+            components.borrow_mut().insert(component.get_id(), Scope {
+                shared_state,
+            }.into());
+        });
+
         CreatedState {
-            component: COMP::create(self.props, self.link),
+            component,
             element: self.element,
             last_frame: self.ancestor,
             node_ref: self.node_ref,
@@ -215,7 +219,7 @@ where
     fn run(self: Box<Self>) {
         let current_state = self.shared_state.replace(ComponentState::Processing);
         self.shared_state.replace(match current_state {
-            ComponentState::Ready(state) => ComponentState::Created(state.create().update()),
+            ComponentState::Ready(state) => ComponentState::Created(state.create(self.shared_state.clone()).update()),
             ComponentState::Created(_) | ComponentState::Destroyed => current_state,
             ComponentState::Empty | ComponentState::Processing => {
                 panic!("unexpected component state: {}", current_state);
@@ -238,6 +242,10 @@ where
     fn run(self: Box<Self>) {
         match self.shared_state.replace(ComponentState::Destroyed) {
             ComponentState::Created(mut this) => {
+                super::COMPONENTS.with(|components| {
+                    components.borrow_mut().remove(&this.component.get_id());
+                });
+
                 this.component.destroy();
                 if let Some(last_frame) = &mut this.last_frame {
                     last_frame.detach(&this.element);
@@ -275,7 +283,7 @@ where
                     ComponentUpdate::MessageBatch(messages) => messages
                         .into_iter()
                         .fold(false, |acc, msg| this.component.update(msg) || acc),
-                    ComponentUpdate::Properties(props) => this.component.change(props),
+                    ComponentUpdate::Properties(props) => this.component.change(&props),
                 };
                 let next_state = if should_update { this.update() } else { this };
                 ComponentState::Created(next_state)
