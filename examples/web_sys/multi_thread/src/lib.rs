@@ -5,6 +5,9 @@ pub mod job;
 pub mod native_worker;
 
 use log::info;
+use wasm_bindgen::prelude::*;
+#[cfg(feature = "worker")]
+use yew::agent::Threaded;
 use yew::worker::{Bridge, Bridged};
 use yew::{html, Component, ComponentLink, Html, ShouldRender};
 
@@ -79,4 +82,13 @@ impl Component for Model {
             </div>
         }
     }
+}
+
+#[wasm_bindgen(start)]
+pub fn start() {
+    wasm_logger::init(wasm_logger::Config::default());
+    #[cfg(feature = "app")]
+    yew::start_app::<Model>();
+    #[cfg(feature = "worker")]
+    native_worker::Worker::register();
 }
