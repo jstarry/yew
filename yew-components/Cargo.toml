@@ -17,6 +17,6 @@ description = "A collection of community-created Yew components"
 travis-ci = { repository = "yewstack/yew" }
 
 [dependencies]
-wasm-bindgen = "0.2.60"
+wasm-bindgen = "0.2"
 web-sys = "0.3"
 yew = { version = "0.15", path = "../yew" }
