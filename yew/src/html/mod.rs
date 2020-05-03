@@ -39,7 +39,7 @@ pub trait Component: Sized + 'static {
     /// Messages are used to make Components dynamic and interactive. Simple
     /// Component's can declare their Message type to be `()`. Complex Component's
     /// commonly use an enum to declare multiple Message types.
-    type Message: 'static;
+    type Message;
 
     /// Properties are the inputs to a Component and should not mutated within a
     /// Component. They are passed to a Component using a JSX-style syntax.
