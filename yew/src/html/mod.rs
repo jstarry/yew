@@ -65,7 +65,7 @@ pub trait Component: Sized + 'static {
 
     /// Components are created with their properties as well as a `ComponentLink` which
     /// can be used to send messages and create callbacks for triggering updates.
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self;
+    fn create(props: &Self::Properties, link: ComponentLink<Self>) -> Self;
 
     /// Components handle messages in their `update` method and commonly use this method
     /// to update their state and (optionally) re-render themselves.
@@ -95,7 +95,7 @@ pub trait Component: Sized + 'static {
     ///# }
     /// ```
     /// Components which don't have properties should always return false.
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender;
+    fn change(&mut self, _old: &Self::Properties, _new: &Self::Properties) -> ShouldRender;
 
     /// Components define their visual layout using a JSX-style syntax through the use of the
     /// `html!` procedural macro. The full guide to using the macro can be found in [Yew's
@@ -448,7 +448,7 @@ impl<COMP: Component> Renderable for COMP {
 }
 
 /// Trait for building properties for a component
-pub trait Properties: Clone {
+pub trait Properties {
     /// Builder that will be used to construct properties
     type Builder;
 

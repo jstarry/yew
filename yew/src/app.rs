@@ -3,6 +3,7 @@
 
 use crate::html::{Component, ComponentLink, NodeRef, Scope};
 use crate::utils::document;
+use std::rc::Rc;
 use cfg_if::cfg_if;
 cfg_if! {
     if #[cfg(feature = "std_web")] {
@@ -44,7 +45,7 @@ where
             element,
             None,
             NodeRef::default(),
-            COMP::Properties::default(),
+            Rc::new(COMP::Properties::default()),
         )
     }
 
@@ -78,7 +79,7 @@ where
             html_element,
             None,
             NodeRef::default(),
-            COMP::Properties::default(),
+            Rc::new(COMP::Properties::default()),
         )
     }
 }
@@ -104,7 +105,7 @@ where
     ) -> ComponentLink<COMP> {
         clear_element(&element);
         self.scope
-            .mount_in_place(element, None, NodeRef::default(), props)
+            .mount_in_place(element, None, NodeRef::default(), Rc::new(props))
     }
 
     /// Alias to `mount_with_props("body", ...)`.
@@ -134,7 +135,7 @@ where
             .remove_child(&body_element)
             .expect("can't remove body child");
         self.scope
-            .mount_in_place(html_element, None, NodeRef::default(), props)
+            .mount_in_place(html_element, None, NodeRef::default(), Rc::new(props))
     }
 }
 

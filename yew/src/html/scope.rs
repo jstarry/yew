@@ -24,7 +24,7 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     /// Wraps batch of messages for a component.
     MessageBatch(Vec<COMP::Message>),
     /// Wraps properties and new node ref for a component.
-    Properties(COMP::Properties, NodeRef),
+    Properties(Rc<COMP::Properties>, NodeRef),
 }
 
 /// Untyped scope used for accessing parent scope
@@ -118,7 +118,7 @@ impl<COMP: Component> Scope<COMP> {
         element: Element,
         ancestor: Option<VNode>,
         node_ref: NodeRef,
-        props: COMP::Properties,
+        props: Rc<COMP::Properties>,
     ) -> Scope<COMP> {
         scheduler().push_comp(
             ComponentRunnableType::Create,
@@ -229,6 +229,7 @@ const DIRTY: Dirty = true;
 struct ComponentState<COMP: Component> {
     element: Element,
     node_ref: NodeRef,
+    props: Rc<COMP::Properties>,
     scope: Scope<COMP>,
     component: Box<COMP>,
     last_root: Option<VNode>,
@@ -241,14 +242,15 @@ impl<COMP: Component> ComponentState<COMP> {
         ancestor: Option<VNode>,
         node_ref: NodeRef,
         scope: Scope<COMP>,
-        props: COMP::Properties,
+        props: Rc<COMP::Properties>,
     ) -> Self {
-        let component = Box::new(COMP::create(props, scope.clone()));
+        let component = Box::new(COMP::create(&props, scope.clone()));
         Self {
             element,
             node_ref,
             scope,
             component,
+            props,
             last_root: ancestor,
             render_status: None,
         }
@@ -264,7 +266,7 @@ where
     ancestor: Option<VNode>,
     node_ref: NodeRef,
     scope: Scope<COMP>,
-    props: COMP::Properties,
+    props: Rc<COMP::Properties>,
 }
 
 impl<COMP> Runnable for CreateComponent<COMP>
@@ -309,7 +311,7 @@ where
                     // When components are updated, they receive a new node ref that
                     // must be linked to previous one.
                     node_ref.link(state.node_ref.clone());
-                    state.component.change(props)
+                    state.component.change(&state.props, &props)
                 }
             };
 
