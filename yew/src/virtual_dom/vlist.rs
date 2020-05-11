@@ -127,7 +127,6 @@ impl VDiff for VList {
         let key_count = rights.iter().filter(|r| r.key().is_some()).count();
         let mut rights_nokeys = Vec::with_capacity(rights.len() - key_count);
         let mut rights_lookup = HashMap::with_capacity(key_count);
-        log::info!("Debuggggg");
         for mut r in rights.into_iter() {
             if let Some(key) = r.take_key() {
                 if rights_lookup.contains_key(&key) {
@@ -143,16 +142,24 @@ impl VDiff for VList {
         let mut rights = rights_nokeys.into_iter();
         for left in lefts {
             let ancestor = if let Some(key) = left.key() {
-                 rights_lookup.remove(key)
+                 let a = rights_lookup.remove(key);
+                 if a.is_some() {
+                    log::info!("Update keyed ancestor");
+                 } else {
+                    log::info!("Create new keyed el");
+                 }
+                 a
             } else {
                 rights.next()
             };
             previous_sibling = left.apply(scope, parent, previous_sibling.as_ref(), ancestor);
         }
         for mut right in rights {
+            log::info!("Detach nonkeyed ancestor");
             right.detach(parent);
         }
         for right in rights_lookup.values_mut() {
+            log::info!("Detach keyed ancestor");
             right.detach(parent);
         }
         previous_sibling
