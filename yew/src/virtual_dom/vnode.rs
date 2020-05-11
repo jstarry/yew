@@ -41,6 +41,16 @@ impl VNode {
             VNode::VRef(_) => &None,
         }
     }
+
+    pub fn take_key(&mut self) -> Option<String> {
+        match self {
+            VNode::VTag(vtag) => vtag.key.take(),
+            VNode::VText(_) => None,
+            VNode::VComp(vcomp) => vcomp.key.take(),
+            VNode::VList(vlist) => vlist.key.take(),
+            VNode::VRef(_) => None,
+        }
+    }
 }
 
 impl VDiff for VNode {

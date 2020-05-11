@@ -127,13 +127,14 @@ impl VDiff for VList {
         let key_count = rights.iter().filter(|r| r.key().is_some()).count();
         let mut rights_nokeys = Vec::with_capacity(rights.len() - key_count);
         let mut rights_lookup = HashMap::with_capacity(key_count);
+        log::info!("Debuggggg");
         for mut r in rights.into_iter() {
-            if let Some(key) = r.key() {
-                if rights_lookup.contains_key(key) {
-                    log::error!("Duplicate key of {}", &key);
+            if let Some(key) = r.take_key() {
+                if rights_lookup.contains_key(&key) {
+                    log::error!("Duplicate key of {}", key);
                     r.detach(parent);
                 } else {
-                    rights_lookup.insert(key.clone(), r);
+                    rights_lookup.insert(key, r);
                 }
             } else {
                 rights_nokeys.push(r);
@@ -141,29 +142,12 @@ impl VDiff for VList {
         }
         let mut rights = rights_nokeys.into_iter();
         for left in lefts {
-            if let Some(key) = &left.key() {
-                match rights_lookup.remove(key) {
-                    Some(right) => {
-                        previous_sibling =
-                            left.apply(scope, parent, previous_sibling.as_ref(), Some(right));
-                    }
-                    None => {
-                        previous_sibling =
-                            left.apply(scope, parent, previous_sibling.as_ref(), None);
-                    }
-                }
+            let ancestor = if let Some(key) = left.key() {
+                 rights_lookup.remove(key)
             } else {
-                match rights.next() {
-                    Some(right) => {
-                        previous_sibling =
-                            left.apply(scope, parent, previous_sibling.as_ref(), Some(right));
-                    }
-                    None => {
-                        previous_sibling =
-                            left.apply(scope, parent, previous_sibling.as_ref(), None);
-                    }
-                }
-            }
+                rights.next()
+            };
+            previous_sibling = left.apply(scope, parent, previous_sibling.as_ref(), ancestor);
         }
         for mut right in rights {
             right.detach(parent);
