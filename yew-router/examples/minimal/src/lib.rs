@@ -48,7 +48,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         let mut route_service: RouteService<()> = RouteService::new();
         let route = route_service.get_route();
         let callback = link.callback(Msg::RouteChanged);
@@ -73,11 +73,11 @@ impl Component for Model {
         true
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
         false
     }
 
-    fn view(&self) -> VNode {
+    fn view(&self, _: &Self::Properties) -> VNode {
         html! {
             <div>
                 <nav class="menu",>

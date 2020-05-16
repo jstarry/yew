@@ -17,14 +17,14 @@ impl Component for App {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         App {
             link,
             hovered: Hovered::None,
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {
         false
     }
 
@@ -35,7 +35,7 @@ impl Component for App {
         true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         let on_hover = &self.link.callback(Msg::Hover);
         let onmouseenter = &self.link.callback(|_| Msg::Hover(Hovered::None));
         let list_link = &WeakComponentLink::<List>::default();

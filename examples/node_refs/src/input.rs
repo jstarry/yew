@@ -36,7 +36,7 @@ impl Component for InputComponent {
         true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <input
                 type="text"

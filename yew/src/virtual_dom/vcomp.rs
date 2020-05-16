@@ -119,22 +119,15 @@ impl VComp {
     {
         let node_ref_clone = node_ref.clone();
         let generator = move |generator_type: GeneratorType| -> Mounted {
-            match generator_type {
+            let scope: Scope<COMP> = match generator_type {
                 GeneratorType::Mount(parent_scope, element, dummy_node) => {
                     let scope: Scope<COMP> = Scope::new(Some(parent_scope));
-
-                    let mut scope = scope.mount_in_place(
+                    scope.mount_in_place(
                         element,
                         Some(VNode::VRef(dummy_node.into())),
                         node_ref_clone.clone(),
                         props.clone(),
-                    );
-
-                    Mounted {
-                        node_ref: node_ref_clone.clone(),
-                        scope: scope.clone().into(),
-                        destroyer: Box::new(move || scope.destroy()),
-                    }
+                    )
                 }
                 GeneratorType::Overwrite(any_scope) => {
                     let mut scope: Scope<COMP> = any_scope.downcast();
@@ -142,13 +135,14 @@ impl VComp {
                         ComponentUpdate::Properties(props.clone(), node_ref_clone.clone()),
                         false,
                     );
-
-                    Mounted {
-                        node_ref: node_ref_clone.clone(),
-                        scope: scope.clone().into(),
-                        destroyer: Box::new(move || scope.destroy()),
-                    }
+                    scope
                 }
+            };
+
+            Mounted {
+                node_ref: node_ref_clone.clone(),
+                scope: scope.clone().into(),
+                destroyer: Box::new(move || scope.destroy()),
             }
         };
 
@@ -365,11 +359,11 @@ mod tests {
             unimplemented!();
         }
 
-        fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
+        fn change(&mut self, _: &Self::Properties, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
             unimplemented!();
         }
 
-        fn view(&self) -> Html {
+        fn view(&self, _: &Self::Properties) -> Html {
             unimplemented!();
         }
     }

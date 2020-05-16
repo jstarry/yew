@@ -57,7 +57,7 @@ impl<T: PureComponent + 'static> Component for Pure<T> {
         self.0.neq_assign(props)
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         self.0.render()
     }
 }

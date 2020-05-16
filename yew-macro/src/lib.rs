@@ -23,7 +23,7 @@
 //! # impl yew::Component for Component {
 //! #     type Message = Msg;
 //! #     type Properties = Props;
-//! #     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+//! #     fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
 //! #         unimplemented!()
 //! #     }
 //! #
@@ -35,7 +35,7 @@
 //! #         unimplemented!()
 //! #     }
 //! #
-//! #     fn view(&self) -> Html {
+//! #     fn view(&self, _: &Self::Properties) -> Html {
 //! #
 //! // ...
 //!

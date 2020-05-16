@@ -37,7 +37,7 @@ impl Component for ListItem {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         let name = self.props.name.clone();
         let onmouseover = self
             .props

@@ -18,13 +18,13 @@ impl Component for Producer {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         let event_bus = EventBus::dispatcher();
 
         Producer { event_bus, link }
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {
         false
     }
 
@@ -38,7 +38,7 @@ impl Component for Producer {
         }
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <button
                 onclick=self.link.callback(|_| Msg::Clicked)

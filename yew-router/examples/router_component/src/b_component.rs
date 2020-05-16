@@ -141,7 +141,7 @@ impl Component for BModel {
         true
     }
 
-    fn view(&self) -> VNode {
+    fn view(&self, _: &Self::Properties) -> VNode {
         html! {
             <div>
                 <div>

@@ -74,7 +74,7 @@ impl Component for List {
         }
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         let inactive = if self.inactive { "inactive" } else { "" };
         let onmouseover = self.props.on_hover.reform(|_| Hovered::List);
         let onmouseout = self.props.on_hover.reform(|_| Hovered::None);

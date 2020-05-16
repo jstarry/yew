@@ -15,7 +15,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model { link }
     }
 
@@ -32,7 +32,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <Button callback=self.link.callback(|_| Msg::DoIt) text = "Click me!" />
         }

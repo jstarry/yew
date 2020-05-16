@@ -10,7 +10,7 @@ impl Component for Model {
     type Message = Effect<Self>;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model { value: false, link }
     }
 
@@ -22,7 +22,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <>
                 <div>

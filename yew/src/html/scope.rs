@@ -396,7 +396,7 @@ mod tests {
     #[cfg(feature = "wasm_test")]
     wasm_bindgen_test_configure!(run_in_browser);
 
-    #[derive(Clone, Properties)]
+    #[derive(Properties)]
     struct Props {
         lifecycle: Rc<RefCell<Vec<String>>>,
         create_message: Option<bool>,
@@ -433,12 +433,12 @@ mod tests {
             msg
         }
 
-        fn change(&mut self, _: Self::Properties) -> ShouldRender {
+        fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
             self.props.lifecycle.borrow_mut().push("change".into());
             false
         }
 
-        fn view(&self) -> Html {
+        fn view(&self, _: &Self::Properties) -> Html {
             self.props.lifecycle.borrow_mut().push("view".into());
             html! {}
         }
@@ -461,7 +461,7 @@ mod tests {
 
         let scope = Scope::<Comp>::new(None);
         let el = document.create_element("div").unwrap();
-        scope.mount_in_place(el, None, NodeRef::default(), props);
+        scope.mount_in_place(el, None, NodeRef::default(), Rc::new(props));
 
         assert_eq!(
             lifecycle.borrow_mut().deref(),
@@ -484,7 +484,7 @@ mod tests {
 
         let scope = Scope::<Comp>::new(None);
         let el = document.create_element("div").unwrap();
-        scope.mount_in_place(el, None, NodeRef::default(), props);
+        scope.mount_in_place(el, None, NodeRef::default(), Rc::new(props));
 
         assert_eq!(
             lifecycle.borrow_mut().deref(),
@@ -508,7 +508,7 @@ mod tests {
 
         let scope = Scope::<Comp>::new(None);
         let el = document.create_element("div").unwrap();
-        scope.mount_in_place(el, None, NodeRef::default(), props);
+        scope.mount_in_place(el, None, NodeRef::default(), Rc::new(props));
 
         assert_eq!(
             lifecycle.borrow_mut().deref(),

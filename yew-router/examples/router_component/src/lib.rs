@@ -31,7 +31,7 @@ impl Component for Model {
     type Message = ();
     type Properties = ();
 
-    fn create(_: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, _link: ComponentLink<Self>) -> Self {
         Model {}
     }
 
@@ -43,7 +43,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> VNode {
+    fn view(&self, _: &Self::Properties) -> VNode {
         html! {
             <div>
                 <nav class="menu",>

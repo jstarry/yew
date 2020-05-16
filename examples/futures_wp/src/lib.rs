@@ -88,14 +88,14 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model {
             markdown: FetchState::NotFetching,
             link,
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {
         false
     }
 
@@ -120,7 +120,7 @@ impl Component for Model {
         }
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         match &self.markdown {
             FetchState::NotFetching => html! {
                 <button onclick=self.link.callback(|_| Msg::GetMarkdown)>

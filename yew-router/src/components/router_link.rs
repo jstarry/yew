@@ -52,7 +52,7 @@ impl<SW: Switch + Clone + 'static, STATE: RouterState> Component for RouterAncho
         true
     }
 
-    fn view(&self) -> VNode {
+    fn view(&self, _: &Self::Properties) -> VNode {
         #[cfg(feature = "std_web")]
         use stdweb::web::event::IEvent;
 

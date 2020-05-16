@@ -29,7 +29,7 @@ impl<STATE> RouterState for STATE where STATE: RouteState + PartialEq {}
 ///     //...
 /// #   type Message = Msg;
 /// #   type Properties = ();
-/// #   fn create(_: Self::Properties, _link: ComponentLink<Self>) -> Self {
+/// #   fn create(_: &Self::Properties, _link: ComponentLink<Self>) -> Self {
 /// #       Model {}
 /// #   }
 /// #   fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -39,7 +39,7 @@ impl<STATE> RouterState for STATE where STATE: RouteState + PartialEq {}
 /// #        false
 /// #   }
 ///
-///     fn view(&self) -> VNode {
+///     fn view(&self, _: &Self::Properties) -> VNode {
 ///         html! {
 ///         <Router<S>
 ///            render = Router::render(|switch: S| {
@@ -221,7 +221,7 @@ where
         true
     }
 
-    fn view(&self) -> VNode {
+    fn view(&self, _: &Self::Properties) -> VNode {
         match self.switch.clone() {
             Some(switch) => (&self.props.render.0)(switch),
             None => {

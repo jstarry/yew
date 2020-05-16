@@ -12,7 +12,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
         Model {}
     }
 
@@ -29,7 +29,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         BoxedVNodeProducer::from(
             list()
                 .child(text("Hello there"))

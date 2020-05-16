@@ -26,8 +26,8 @@ use yew::macros::{html, Properties};
 ///#     type Message = ();type Properties = ();
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}}
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
+///#     fn view(&self, _: &Self::Properties) -> Html {unimplemented!()}}
 /// impl fmt::Display for Scene {
 ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 ///         match self {
@@ -132,7 +132,7 @@ where
         true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         let selected = self.props.selected.as_ref();
         let view_option = |value: &T| {
             let flag = selected == Some(value);

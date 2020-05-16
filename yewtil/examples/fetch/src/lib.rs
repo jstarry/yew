@@ -61,7 +61,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model {
             markdown: Default::default(),
             link,
@@ -88,7 +88,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         match self.markdown.as_ref().state() {
             FetchState::NotFetching(_) => {
                 html! {<button onclick=self.link.callback(|_| Msg::GetMarkdown)>{"Get employees"}</button>}

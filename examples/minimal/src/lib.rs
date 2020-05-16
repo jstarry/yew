@@ -12,11 +12,11 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model { link }
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {
         false
     }
 
@@ -27,7 +27,7 @@ impl Component for Model {
         true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <div>
                 <button onclick=self.link.callback(|_| Msg::Click)>{ "Click ( wasm-bindgen )" }</button>

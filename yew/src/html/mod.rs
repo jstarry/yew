@@ -46,7 +46,7 @@ pub trait Component: Sized + 'static {
     /// ```
     ///# use yew::{Html, Component, Properties, ComponentLink, html};
     ///# struct Model;
-    ///# #[derive(Clone, Properties)]
+    ///# #[derive(Properties)]
     ///# struct Props {
     ///#     prop: String,
     ///# }
@@ -54,8 +54,8 @@ pub trait Component: Sized + 'static {
     ///#     type Message = ();type Properties = Props;
     ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
     ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-    ///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-    ///#     fn view(&self) -> Html {
+    ///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
+    ///#     fn view(&self, _: &Self::Properties) -> Html {
     /// html! {
     ///     <Model prop="value" />
     /// }
@@ -83,14 +83,9 @@ pub trait Component: Sized + 'static {
     ///#     type Message = ();type Properties = ();
     ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
     ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-    ///#     fn view(&self) -> Html {unimplemented!()}
-    /// fn change(&mut self, props: Self::Properties) -> ShouldRender {
-    ///     if self.props != props {
-    ///         self.props = props;
-    ///         true
-    ///     } else {
-    ///         false
-    ///     }
+    ///#     fn view(&self, _: &Self::Properties) -> Html {unimplemented!()}
+    /// fn change(&mut self, old_props: &Self::Properties, new_props: &Self::Properties) -> ShouldRender {
+    ///     old_props != new_props
     /// }
     ///# }
     /// ```
@@ -100,7 +95,7 @@ pub trait Component: Sized + 'static {
     /// Components define their visual layout using a JSX-style syntax through the use of the
     /// `html!` procedural macro. The full guide to using the macro can be found in [Yew's
     /// documentation](https://yew.rs/docs/concepts/html).
-    fn view(&self) -> Html;
+    fn view(&self, _: &Self::Properties) -> Html;
 
     /// The `rendered` method is called after each time a Component is rendered but
     /// before the browser updates the page.
@@ -113,7 +108,7 @@ pub trait Component: Sized + 'static {
     ///#     type Message = ();type Properties = ();
     ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
     ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-    ///#     fn view(&self) -> Html {unimplemented!()}
+    ///#     fn view(&self, _: &Self::Properties) -> Html {unimplemented!()}
     ///#     fn change(&mut self, _props: Self::Properties) -> ShouldRender { unimplemented!() }
     /// fn rendered(&mut self, first_render: bool) {
     ///    if first_render {
@@ -135,7 +130,7 @@ pub type Html = VNode;
 /// In this example, the `Wrapper` component is used to wrap other elements.
 /// ```
 ///# use yew::{Children, Html, Properties, Component, ComponentLink, html};
-///# #[derive(Clone, Properties)]
+///# #[derive(Properties)]
 ///# struct WrapperProps {
 ///#     children: Children,
 ///# }
@@ -145,9 +140,9 @@ pub type Html = VNode;
 ///#     type Properties = WrapperProps;
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
 ///#     // This is not a valid implementation.  This is done for space convenience.
-///#     fn view(&self) -> Html {
+///#     fn view(&self, _: &Self::Properties) -> Html {
 /// html! {
 ///     <Wrapper>
 ///         <h4>{ "Hi" }</h4>
@@ -164,7 +159,7 @@ pub type Html = VNode;
 /// children property can be used to render the wrapped elements.
 /// ```
 ///# use yew::{Children, Html, Properties, Renderable, Component, ComponentLink, html};
-/// #[derive(Clone, Properties)]
+/// #[derive(Properties)]
 /// struct WrapperProps {
 ///     children: Children,
 /// }
@@ -176,8 +171,8 @@ pub type Html = VNode;
 ///#     type Properties = WrapperProps;
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///     fn view(&self) -> Html {
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
+///     fn view(&self, _: &Self::Properties) -> Html {
 ///         html! {
 ///             <div id="container">
 ///                 { self.props.children.render() }
@@ -197,7 +192,7 @@ pub type Children = ChildrenRenderer<Html>;
 /// ```
 ///# use yew::{html, Component, Renderable, Html, ComponentLink, ChildrenWithProps, Properties};
 ///#
-///# #[derive(Clone, Properties)]
+///# #[derive(Properties)]
 ///# struct ListProps {
 ///#     children: ChildrenWithProps<ListItem>,
 ///# }
@@ -207,10 +202,10 @@ pub type Children = ChildrenRenderer<Html>;
 ///#     type Properties = ListProps;
 ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
+///#     fn view(&self, _: &Self::Properties) -> Html {unimplemented!()}
 ///# }
-///# #[derive(Clone, Properties)]
+///# #[derive(Properties)]
 ///# struct ListItemProps {
 ///#     value: String
 ///# }
@@ -220,8 +215,8 @@ pub type Children = ChildrenRenderer<Html>;
 ///#     type Properties = ListItemProps;
 ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
+///#     fn view(&self, _: &Self::Properties) -> Html {unimplemented!()}
 ///# }
 ///# fn view() -> Html {
 /// html!{
@@ -241,7 +236,7 @@ pub type Children = ChildrenRenderer<Html>;
 /// ```
 ///# use yew::{html, Component, Html, ChildrenWithProps, ComponentLink, Properties};
 ///#
-/// #[derive(Clone, Properties)]
+/// #[derive(Properties)]
 /// struct ListProps {
 ///     children: ChildrenWithProps<ListItem>,
 /// }
@@ -252,9 +247,9 @@ pub type Children = ChildrenRenderer<Html>;
 ///#     type Properties = ListProps;
 ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
 ///     // ...
-///     fn view(&self) -> Html {
+///     fn view(&self, _: &Self::Properties) -> Html {
 ///         html!{{
 ///             for self.props.children.iter().map(|mut item| {
 ///                 item.props.value = format!("item-{}", item.props.value);
@@ -264,7 +259,7 @@ pub type Children = ChildrenRenderer<Html>;
 ///     }
 /// }
 ///#
-///# #[derive(Clone, Properties)]
+///# #[derive(Properties)]
 ///# struct ListItemProps {
 ///#     #[prop_or_default]
 ///#     value: String
@@ -276,8 +271,8 @@ pub type Children = ChildrenRenderer<Html>;
 ///#     type Properties = ListItemProps;
 ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
 ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}
+///#     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {unimplemented!()}
+///#     fn view(&self, _: &Self::Properties) -> Html {unimplemented!()}
 ///# }
 /// ```
 pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;
@@ -366,7 +361,7 @@ where
 ///     type Message = ();
 ///     type Properties = ();
 ///
-///     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+///     fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
 ///         Input {
 ///             node_ref: NodeRef::default(),
 ///         }
@@ -380,7 +375,7 @@ where
 ///         }
 ///     }
 ///
-///     fn change(&mut self, _: Self::Properties) -> ShouldRender {
+///     fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
 ///         false
 ///     }
 ///
@@ -388,7 +383,7 @@ where
 ///         false
 ///     }
 ///
-///     fn view(&self) -> Html {
+///     fn view(&self, _: &Self::Properties) -> Html {
 ///         html! {
 ///             <input ref=self.node_ref.clone() type="text" />
 ///         }

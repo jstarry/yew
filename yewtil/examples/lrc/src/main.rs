@@ -17,7 +17,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model {
             text: Lrc::new("".to_string()),
             update_text: link.callback(|_| Msg::UpdateTextAtADistance),
@@ -34,7 +34,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <>
                 <div>

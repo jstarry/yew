@@ -228,7 +228,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
         Model
     }
 
@@ -261,7 +261,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model { link }
     }
 
@@ -368,7 +368,7 @@ cloned is when a wrapper component re-renders nested children components.
       type Message = Msg;
       type Properties = ();
 
-      fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+      fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
           Model {
               onclick: link.callback(|_| Msg::Click),
           }
@@ -502,7 +502,7 @@ cloned is when a wrapper component re-renders nested children components.
       type Message = ();
       type Properties = ();
 
-      fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+      fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
           Input {
               node_ref: NodeRef::default(),
           }
@@ -547,7 +547,7 @@ cloned is when a wrapper component re-renders nested children components.
         type Message = Msg;
         type Properties = ();
 
-        fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+        fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
             Model {}
         }
 
@@ -569,7 +569,7 @@ cloned is when a wrapper component re-renders nested children components.
         type Message = Msg;
         type Properties = ();
 
-        fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+        fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
             Model {}
         }
 

@@ -21,7 +21,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         let payload = String::default();
         let debugged_payload = format!("{:?}", payload);
         Self {
@@ -50,11 +50,11 @@ impl Component for Model {
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <div>
                 <textarea oninput=self.link.callback(move |input: InputData| Msg::Payload(input.value))

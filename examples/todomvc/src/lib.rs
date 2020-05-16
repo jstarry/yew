@@ -49,7 +49,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         let storage = StorageService::new(Area::Local).expect("storage was disabled by the user");
         let entries = {
             if let Json(Ok(restored_model)) = storage.restore(KEY) {
@@ -121,11 +121,11 @@ impl Component for Model {
         true
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <div class="todomvc-wrapper">
                 <section class="todoapp">

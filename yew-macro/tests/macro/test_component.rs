@@ -11,7 +11,7 @@ impl Component for TestComponent {
     type Message = ();
     type Properties = TestProperties;
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
         TestComponent
     }
 
@@ -19,11 +19,11 @@ impl Component for TestComponent {
         unimplemented!()
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
         unimplemented!()
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         unimplemented!()
     }
 }

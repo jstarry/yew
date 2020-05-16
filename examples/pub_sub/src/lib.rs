@@ -14,11 +14,11 @@ impl Component for Model {
     type Message = ();
     type Properties = ();
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, _: ComponentLink<Self>) -> Self {
         Model {}
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {
         false
     }
 
@@ -26,7 +26,7 @@ impl Component for Model {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <div>
                 <Producer />

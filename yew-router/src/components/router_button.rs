@@ -46,7 +46,7 @@ impl<SW: Switch + Clone + 'static, STATE: RouterState> Component for RouterButto
         true
     }
 
-    fn view(&self) -> VNode {
+    fn view(&self, _: &Self::Properties) -> VNode {
         let cb = |x| self.link.callback(x);
         html! {
             <button

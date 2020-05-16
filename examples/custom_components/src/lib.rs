@@ -24,7 +24,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         Model {
             link,
             with_barrier: false,
@@ -46,11 +46,11 @@ impl Component for Model {
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         let counter = |x| {
             html! {
                 <Counter initial=x color=&self.color

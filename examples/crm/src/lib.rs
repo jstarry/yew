@@ -63,7 +63,7 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         let storage = StorageService::new(Area::Local).expect("storage was disabled by the user");
         let Json(database) = storage.restore(KEY);
         let database = database.unwrap_or_else(|_| Database {
@@ -146,11 +146,11 @@ impl Component for Model {
         true
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> ShouldRender {
         false
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         match self.scene {
             Scene::ClientsList => html! {
                 <div class="crm">

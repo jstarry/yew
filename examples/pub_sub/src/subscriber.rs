@@ -15,7 +15,7 @@ impl Component for Subscriber {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_: &Self::Properties, link: ComponentLink<Self>) -> Self {
         let callback = link.callback(Msg::NewMessage);
         let _producer = EventBus::bridge(callback);
         Subscriber {
@@ -24,7 +24,7 @@ impl Component for Subscriber {
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> bool {
+    fn change(&mut self, _: &Self::Properties, _: &Self::Properties) -> bool {
         false
     }
 
@@ -35,7 +35,7 @@ impl Component for Subscriber {
         true
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <h1>{ &self.message }</h1>
         }

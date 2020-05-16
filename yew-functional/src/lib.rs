@@ -85,7 +85,7 @@ where
         props != self.props
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         // Reset hook
         self.hook_state
             .try_borrow_mut()

@@ -33,7 +33,7 @@ impl Component for Child {
         self.props.neq_assign(props)
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _: &Self::Properties) -> Html {
         html! {
             <>
                 <input
