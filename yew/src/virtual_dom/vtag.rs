@@ -417,6 +417,7 @@ impl VDiff for VTag {
             }
         };
 
+        let kept = insert_tuple.is_none();
         if let Some((element, position)) = insert_tuple {
             super::insert_node(&element, parent, &position);
             self.reference = Some(element);
@@ -427,18 +428,18 @@ impl VDiff for VTag {
         );
 
         self.apply_diffs(&ancestor);
-
-        // Every render it removes all listeners and attach it back later
-        // TODO(#943): Compare references of handler to do listeners update better
-        if let Some(ancestor) = ancestor.as_mut() {
-            ancestor.captured.clear();
-        }
-
         let element = self.reference.clone().expect("element expected");
 
-        for listener in self.listeners.drain(..) {
-            let handle = listener.attach(&element);
-            self.captured.push(handle);
+        if !kept {
+            // Every render it removes all listeners and attach it back later
+            if let Some(ancestor) = ancestor.as_mut() {
+                ancestor.captured.clear();
+            }
+
+            for listener in self.listeners.drain(..) {
+                let handle = listener.attach(&element);
+                self.captured.push(handle);
+            }
         }
 
         // Process children
