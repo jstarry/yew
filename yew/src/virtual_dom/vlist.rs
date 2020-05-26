@@ -135,7 +135,6 @@ impl VDiff for VList {
 
         // Actual diffing loop.
         let mut current_right_idx: usize = 0;
-        let mut left_surplus = self.children.len().saturating_sub(rights.len());
         for left in self.children.iter_mut() {
             // Ignore the dummy nodes we may have inserted. We can recognize
             // them because the are VText nodes with empty text and no
@@ -163,13 +162,8 @@ impl VDiff for VList {
                         // location if we want to reuse the node.
                         (Some(*id), true)
                     }
-                    _ if left_surplus > 0 => {
-                        left_surplus -= 1;
-                        (None, true)
-                    }
                     _ => {
-                        current_right_idx += 1;
-                        (Some(current_right_idx - 1), false)
+                        (None, false)
                     }
                 },
                 (None, _) => {
