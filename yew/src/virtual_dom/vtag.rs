@@ -440,6 +440,8 @@ impl VDiff for VTag {
                 let handle = listener.attach(&element);
                 self.captured.push(handle);
             }
+        } else if let Some(ancestor) = ancestor.as_mut() {
+            self.captured = ancestor.captured.drain(..).collect();
         }
 
         // Process children
