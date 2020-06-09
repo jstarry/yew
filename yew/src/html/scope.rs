@@ -27,6 +27,17 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     Properties(COMP::Properties, NodeRef, NodeRef),
 }
 
+impl<COMP: Component> fmt::Debug for ComponentUpdate<COMP> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Self::Force => f.write_str("Force"),
+            Self::Message(_) => f.write_str("Message"),
+            Self::MessageBatch(_) => f.write_str("Batch"),
+            Self::Properties(_, _, _) => f.write_str("Props"),
+        }
+    }
+}
+
 /// Untyped scope used for accessing parent scope
 #[derive(Debug, Clone)]
 pub struct AnyScope {
@@ -66,6 +77,33 @@ impl AnyScope {
                 .expect("unexpected component type")
                 .clone(),
         }
+    }
+}
+
+pub(crate) trait Scoped {
+    fn to_any(&self) -> AnyScope;
+    fn node_ref(&self) -> Option<NodeRef>;
+    fn destroy(&mut self);
+}
+
+impl<COMP: Component> Scoped for Scope<COMP> {
+    fn to_any(&self) -> AnyScope {
+        self.clone().into()
+    }
+
+    fn node_ref(&self) -> Option<NodeRef> {
+        if let Some(state) = self.state.borrow().as_ref() {
+            Some(state.node_ref.clone())
+        } else {
+            None
+        }
+    }
+
+    /// Schedules a task to destroy a component
+    fn destroy(&mut self) {
+        let state = self.state.clone();
+        let destroy = DestroyComponent { state };
+        scheduler().push_comp(ComponentRunnableType::Destroy, Box::new(destroy));
     }
 }
 
@@ -114,27 +152,37 @@ impl<COMP: Component> Scope<COMP> {
 
     /// Mounts a component with `props` to the specified `element` in the DOM.
     pub(crate) fn mount_in_place(
-        self,
         parent: Element,
+        parent_scope: Option<AnyScope>,
         next_sibling: NodeRef,
-        ancestor: Option<VNode>,
         node_ref: NodeRef,
         props: COMP::Properties,
-    ) -> Scope<COMP> {
-        scheduler().push_comp(
-            ComponentRunnableType::Create,
-            Box::new(CreateComponent {
-                state: self.state.clone(),
+    ) -> Self {
+        let scope = {
+            let scheduler = scheduler();
+            let _lock = scheduler.lock();
+            let scope = Scope::new(parent_scope);
+
+            let component = Box::new(COMP::create(props, scope.clone()));
+            *scope.state.borrow_mut() = Some(ComponentState::new(
+                component,
                 parent,
                 next_sibling,
-                ancestor,
                 node_ref,
-                scope: self.clone(),
-                props,
-            }),
-        );
-        self.update(ComponentUpdate::Force, true);
-        self
+                scope.clone(),
+            ));
+
+            Box::new(UpdateComponent {
+                state: scope.state.clone(),
+                update: ComponentUpdate::Force,
+            })
+            .run();
+
+            scope
+        };
+
+        scope.render(true);
+        scope
     }
 
     /// Schedules a task to send an update to a component
@@ -155,13 +203,6 @@ impl<COMP: Component> Scope<COMP> {
             first_render,
         };
         scheduler().push_comp(ComponentRunnableType::Render, Box::new(rendered));
-    }
-
-    /// Schedules a task to destroy a component
-    pub(crate) fn destroy(&mut self) {
-        let state = self.state.clone();
-        let destroy = DestroyComponent { state };
-        scheduler().push_comp(ComponentRunnableType::Destroy, Box::new(destroy));
     }
 
     /// Send a message to the component.
@@ -258,57 +299,20 @@ impl<COMP: Component> ComponentState<COMP> {
     /// Creates a new `ComponentState`, also invokes the `create()`
     /// method on component to create it.
     fn new(
+        component: Box<COMP>,
         parent: Element,
         next_sibling: NodeRef,
-        ancestor: Option<VNode>,
         node_ref: NodeRef,
         scope: Scope<COMP>,
-        props: COMP::Properties,
     ) -> Self {
-        let component = Box::new(COMP::create(props, scope.clone()));
         Self {
             parent,
             next_sibling,
             node_ref,
             scope,
             component,
-            last_root: ancestor,
+            last_root: None,
             new_root: None,
-        }
-    }
-}
-
-/// A `Runnable` task which creates the `ComponentState` (if there is
-/// none) and invokes the `create()` method on a `Component` to create
-/// it.
-struct CreateComponent<COMP>
-where
-    COMP: Component,
-{
-    state: Shared<Option<ComponentState<COMP>>>,
-    parent: Element,
-    next_sibling: NodeRef,
-    ancestor: Option<VNode>,
-    node_ref: NodeRef,
-    scope: Scope<COMP>,
-    props: COMP::Properties,
-}
-
-impl<COMP> Runnable for CreateComponent<COMP>
-where
-    COMP: Component,
-{
-    fn run(self: Box<Self>) {
-        let mut current_state = self.state.borrow_mut();
-        if current_state.is_none() {
-            *current_state = Some(ComponentState::new(
-                self.parent,
-                self.next_sibling,
-                self.ancestor,
-                self.node_ref,
-                self.scope,
-                self.props,
-            ));
         }
     }
 }
@@ -482,12 +486,10 @@ mod tests {
 
     fn test_lifecycle(props: Props, expected: &[String]) {
         let document = crate::utils::document();
-        let scope = Scope::<Comp>::new(None);
-        let el = document.create_element("div").unwrap();
         let lifecycle = props.lifecycle.clone();
-
+        let el = document.create_element("div").unwrap();
         lifecycle.borrow_mut().clear();
-        scope.mount_in_place(el, NodeRef::default(), None, NodeRef::default(), props);
+        Scope::<Comp>::mount_in_place(el, None, NodeRef::default(), NodeRef::default(), props);
 
         assert_eq!(&lifecycle.borrow_mut().deref()[..], expected);
     }
@@ -516,8 +518,8 @@ mod tests {
             },
             &vec![
                 "create".to_string(),
-                "update(false)".to_string(),
                 "view".to_string(),
+                "update(false)".to_string(),
                 "rendered(true)".to_string(),
             ],
         );

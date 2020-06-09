@@ -1,28 +1,17 @@
 //! This module contains the implementation of a virtual component (`VComp`).
 
 use super::{Transformer, VDiff, VNode};
-use crate::html::{AnyScope, Component, ComponentUpdate, NodeRef, Scope};
-use crate::utils::document;
+use crate::html::{AnyScope, Component, ComponentUpdate, NodeRef, Scope, Scoped};
 use cfg_if::cfg_if;
 use std::any::TypeId;
 use std::fmt;
 use std::mem::replace;
-use std::rc::Rc;
 cfg_if! {
     if #[cfg(feature = "std_web")] {
-        use stdweb::web::{Element, Node, TextNode};
+        use stdweb::web::{Element, Node};
     } else if #[cfg(feature = "web_sys")] {
-        use web_sys::{Element, Node, Text as TextNode};
+        use web_sys::{Element, Node};
     }
-}
-
-/// The method generates an instance of a component.
-type Generator = dyn Fn(GeneratorType) -> Mounted;
-
-/// Components can be generated either by mounting or overwriting an old component.
-enum GeneratorType {
-    Mount(AnyScope, Element, NodeRef, TextNode),
-    Overwrite(AnyScope, NodeRef),
 }
 
 /// A virtual component.
@@ -30,8 +19,156 @@ enum GeneratorType {
 pub struct VComp {
     type_id: TypeId,
     state: MountState,
-    pub(crate) node_ref: NodeRef,
     pub(crate) key: Option<String>,
+}
+
+impl VComp {
+    pub(crate) fn first_node(&self) -> Node {
+        match &self.state {
+            MountState::Mounted(scope) => scope
+                .node_ref()
+                .expect("VComp should always wrap a node")
+                .get()
+                .expect("VComp should always wrap a node"),
+            _ => {
+                panic!("VComp has no first node when not mounted");
+            }
+        }
+    }
+}
+
+enum MountState {
+    Unmounted(Box<dyn Mountable>),
+    Mounted(Box<dyn Scoped>),
+    Mounting,
+    Detached,
+    Overwritten,
+}
+
+impl Clone for MountState {
+    fn clone(&self) -> Self {
+        match &self {
+            Self::Unmounted(mountable) => Self::Unmounted(mountable.copy()),
+            Self::Mounted(_) => panic!("Mounted components are not allowed to be cloned!"),
+            Self::Mounting => Self::Mounting,
+            Self::Detached => Self::Detached,
+            Self::Overwritten => Self::Overwritten,
+        }
+    }
+}
+
+impl VComp {
+    /// This method prepares a generator to make a new instance of the `Component`.
+    pub fn new<COMP>(props: COMP::Properties, node_ref: NodeRef, key: Option<String>) -> Self
+    where
+        COMP: Component,
+    {
+        VComp {
+            type_id: TypeId::of::<COMP>(),
+            state: MountState::Unmounted(Box::new(Unmounted::<COMP>::new(props, node_ref))),
+            key,
+        }
+    }
+}
+
+trait Mountable {
+    fn copy(&self) -> Box<dyn Mountable>;
+    fn mount(
+        self: Box<Self>,
+        parent_scope: &AnyScope,
+        parent: Element,
+        next_sibling: NodeRef,
+    ) -> Box<dyn Scoped>;
+    fn overwrite(self: Box<Self>, scope: &Box<dyn Scoped>, next_sibling: NodeRef);
+}
+
+struct Unmounted<COMP: Component> {
+    props: COMP::Properties,
+    node_ref: NodeRef,
+}
+
+impl<COMP: Component> Unmounted<COMP> {
+    pub fn new(props: COMP::Properties, node_ref: NodeRef) -> Self {
+        Self { props, node_ref }
+    }
+}
+
+impl<COMP: Component> Mountable for Unmounted<COMP> {
+    fn copy(&self) -> Box<dyn Mountable> {
+        let mountable: Box<Unmounted<COMP>> = Box::new(Unmounted {
+            props: self.props.clone(),
+            node_ref: self.node_ref.clone(),
+        });
+        mountable
+    }
+
+    fn mount(
+        self: Box<Self>,
+        parent_scope: &AnyScope,
+        parent: Element,
+        next_sibling: NodeRef,
+    ) -> Box<dyn Scoped> {
+        Box::new(Scope::mount_in_place(
+            parent,
+            Some(parent_scope.clone()),
+            next_sibling,
+            self.node_ref,
+            self.props,
+        ) as Scope<COMP>)
+    }
+
+    fn overwrite(self: Box<Self>, scope: &Box<dyn Scoped>, next_sibling: NodeRef) {
+        let scope: Scope<COMP> = scope.to_any().downcast();
+        scope.update(
+            ComponentUpdate::Properties(self.props, self.node_ref, next_sibling),
+            false,
+        );
+    }
+}
+
+impl VDiff for VComp {
+    fn detach(&mut self, _parent: &Element) {
+        if let MountState::Mounted(mut this) = replace(&mut self.state, MountState::Detached) {
+            this.destroy();
+        }
+    }
+
+    fn apply(
+        &mut self,
+        parent_scope: &AnyScope,
+        parent: &Element,
+        next_sibling: NodeRef,
+        ancestor: Option<VNode>,
+    ) -> NodeRef {
+        if let MountState::Unmounted(this) = replace(&mut self.state, MountState::Mounting) {
+            if let Some(mut ancestor) = ancestor {
+                if let VNode::VComp(ref mut vcomp) = &mut ancestor {
+                    // If the ancestor is a Component of the same type, don't recreate, keep the
+                    // old Component and update the properties.
+                    if self.type_id == vcomp.type_id {
+                        if let MountState::Mounted(scope) =
+                            replace(&mut vcomp.state, MountState::Overwritten)
+                        {
+                            let node = scope.node_ref();
+                            // Send properties update when the component is already rendered.
+                            this.overwrite(&scope, next_sibling);
+                            self.state = MountState::Mounted(scope);
+                            return node.unwrap();
+                        }
+                    }
+                }
+
+                ancestor.detach(parent);
+            }
+
+            let scope = this.mount(parent_scope, parent.to_owned(), next_sibling);
+            let node_ref = scope.node_ref().unwrap();
+            self.state = MountState::Mounted(scope);
+            node_ref
+        } else {
+            unreachable!("Only unmounted components can be mounted");
+        }
+    }
 }
 
 /// A virtual child component.
@@ -82,164 +219,6 @@ where
 {
     fn from(vchild: VChild<COMP>) -> Self {
         VComp::new::<COMP>(vchild.props, vchild.node_ref, vchild.key)
-    }
-}
-
-#[derive(Clone)]
-enum MountState {
-    Unmounted(Unmounted),
-    Mounted(Mounted),
-    Mounting,
-    Detached,
-    Overwritten,
-}
-
-#[derive(Clone)]
-struct Unmounted {
-    generator: Rc<Generator>,
-}
-
-struct Mounted {
-    node_ref: NodeRef,
-    scope: AnyScope,
-    destroyer: Box<dyn FnOnce()>,
-}
-
-impl Clone for Mounted {
-    fn clone(&self) -> Self {
-        panic!("Mounted components are not allowed to be cloned!")
-    }
-}
-
-impl VComp {
-    /// This method prepares a generator to make a new instance of the `Component`.
-    pub fn new<COMP>(props: COMP::Properties, node_ref: NodeRef, key: Option<String>) -> Self
-    where
-        COMP: Component,
-    {
-        let node_ref_clone = node_ref.clone();
-        let generator = move |generator_type: GeneratorType| -> Mounted {
-            match generator_type {
-                GeneratorType::Mount(parent_scope, parent, next_sibling, dummy_node) => {
-                    let scope: Scope<COMP> = Scope::new(Some(parent_scope));
-                    let dummy_node: Node = dummy_node.into();
-                    node_ref_clone.set(Some(dummy_node.clone()));
-                    let mut scope = scope.mount_in_place(
-                        parent,
-                        next_sibling,
-                        Some(VNode::VRef(dummy_node)),
-                        node_ref_clone.clone(),
-                        props.clone(),
-                    );
-
-                    Mounted {
-                        node_ref: node_ref_clone.clone(),
-                        scope: scope.clone().into(),
-                        destroyer: Box::new(move || scope.destroy()),
-                    }
-                }
-                GeneratorType::Overwrite(any_scope, next_sibling) => {
-                    let mut scope: Scope<COMP> = any_scope.downcast();
-                    scope.update(
-                        ComponentUpdate::Properties(
-                            props.clone(),
-                            node_ref_clone.clone(),
-                            next_sibling,
-                        ),
-                        false,
-                    );
-
-                    Mounted {
-                        node_ref: node_ref_clone.clone(),
-                        scope: scope.clone().into(),
-                        destroyer: Box::new(move || scope.destroy()),
-                    }
-                }
-            }
-        };
-
-        VComp {
-            type_id: TypeId::of::<COMP>(),
-            state: MountState::Unmounted(Unmounted {
-                generator: Rc::new(generator),
-            }),
-            node_ref,
-            key,
-        }
-    }
-}
-
-impl Unmounted {
-    /// Mount a virtual component using a generator.
-    fn mount(
-        self,
-        parent_scope: AnyScope,
-        parent: Element,
-        next_sibling: NodeRef,
-        dummy_node: TextNode,
-    ) -> Mounted {
-        (self.generator)(GeneratorType::Mount(
-            parent_scope,
-            parent,
-            next_sibling,
-            dummy_node,
-        ))
-    }
-
-    /// Overwrite an existing virtual component using a generator.
-    fn replace(self, old: Mounted, next_sibling: NodeRef) -> Mounted {
-        (self.generator)(GeneratorType::Overwrite(old.scope, next_sibling))
-    }
-}
-
-impl VDiff for VComp {
-    fn detach(&mut self, _parent: &Element) {
-        if let MountState::Mounted(this) = replace(&mut self.state, MountState::Detached) {
-            (this.destroyer)();
-        }
-    }
-
-    fn apply(
-        &mut self,
-        parent_scope: &AnyScope,
-        parent: &Element,
-        next_sibling: NodeRef,
-        ancestor: Option<VNode>,
-    ) -> NodeRef {
-        if let MountState::Unmounted(this) = replace(&mut self.state, MountState::Mounting) {
-            if let Some(mut ancestor) = ancestor {
-                if let VNode::VComp(ref mut vcomp) = &mut ancestor {
-                    // If the ancestor is a Component of the same type, don't recreate, keep the
-                    // old Component and update the properties.
-                    if self.type_id == vcomp.type_id {
-                        if let MountState::Mounted(mounted) =
-                            replace(&mut vcomp.state, MountState::Overwritten)
-                        {
-                            let node = mounted.node_ref.clone();
-                            // Send properties update when the component is already rendered.
-                            self.state = MountState::Mounted(this.replace(mounted, next_sibling));
-                            return node;
-                        }
-                    }
-                }
-
-                ancestor.detach(parent);
-            }
-
-            let dummy_node = document().create_text_node("");
-            super::insert_node(&dummy_node, parent, next_sibling.get());
-            let mounted = this.mount(
-                parent_scope.clone(),
-                parent.to_owned(),
-                next_sibling,
-                dummy_node,
-            );
-            let node_ref = mounted.node_ref.clone();
-            self.state = MountState::Mounted(mounted);
-            node_ref
-        } else {
-            unreachable!("Only unmounted components can be mounted");
-        }
     }
 }
 

@@ -52,10 +52,7 @@ impl VNode {
                     feature = "web_sys" => text_node.clone().into(),
                 }
             }
-            VNode::VComp(vcomp) => vcomp
-                .node_ref
-                .get()
-                .expect("VComp should always wrap a node"),
+            VNode::VComp(vcomp) => vcomp.first_node(),
             VNode::VList(vlist) => vlist
                 .children
                 .get(0)

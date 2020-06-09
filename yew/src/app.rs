@@ -15,8 +15,7 @@ cfg_if! {
 /// An instance of an application.
 #[derive(Debug)]
 pub struct App<COMP: Component> {
-    /// `Scope` holder
-    scope: Scope<COMP>,
+    _marker: std::marker::PhantomData<COMP>,
 }
 
 impl<COMP> Default for App<COMP>
@@ -40,10 +39,10 @@ where
     /// use the `mount_with_props` method.
     pub fn mount(self, element: Element) -> ComponentLink<COMP> {
         clear_element(&element);
-        self.scope.mount_in_place(
+        Scope::mount_in_place(
             element,
-            NodeRef::default(),
             None,
+            NodeRef::default(),
             NodeRef::default(),
             COMP::Properties::default(),
         )
@@ -75,10 +74,10 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
+        Scope::mount_in_place(
             html_element,
-            NodeRef::default(),
             None,
+            NodeRef::default(),
             NodeRef::default(),
             COMP::Properties::default(),
         )
@@ -91,8 +90,9 @@ where
 {
     /// Creates a new `App` with a component in a context.
     pub fn new() -> Self {
-        let scope = Scope::new(None);
-        App { scope }
+        App {
+            _marker: Default::default(),
+        }
     }
 
     /// The main entry point of a Yew program which also allows passing properties. It works
@@ -105,8 +105,7 @@ where
         props: COMP::Properties,
     ) -> ComponentLink<COMP> {
         clear_element(&element);
-        self.scope
-            .mount_in_place(element, NodeRef::default(), None, NodeRef::default(), props)
+        Scope::mount_in_place(element, None, NodeRef::default(), NodeRef::default(), props)
     }
 
     /// Alias to `mount_with_props("body", ...)`.
@@ -135,10 +134,10 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
+        Scope::mount_in_place(
             html_element,
-            NodeRef::default(),
             None,
+            NodeRef::default(),
             NodeRef::default(),
             props,
         )
