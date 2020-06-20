@@ -27,17 +27,6 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     Properties(COMP::Properties, NodeRef, NodeRef),
 }
 
-impl<COMP: Component> fmt::Debug for ComponentUpdate<COMP> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self {
-            Self::Force => f.write_str("Force"),
-            Self::Message(_) => f.write_str("Message"),
-            Self::MessageBatch(_) => f.write_str("Batch"),
-            Self::Properties(_, _, _) => f.write_str("Props"),
-        }
-    }
-}
-
 /// Untyped scope used for accessing parent scope
 #[derive(Debug, Clone)]
 pub struct AnyScope {
@@ -83,12 +72,25 @@ impl AnyScope {
 pub(crate) trait Scoped {
     fn to_any(&self) -> AnyScope;
     fn node_ref(&self) -> Option<NodeRef>;
+    fn root_node(&self) -> Option<Ref<'_, VNode>>;
     fn destroy(&mut self);
 }
 
 impl<COMP: Component> Scoped for Scope<COMP> {
     fn to_any(&self) -> AnyScope {
         self.clone().into()
+    }
+
+    fn root_node(&self) -> Option<Ref<'_, VNode>> {
+        let state_ref = self.state.borrow();
+        state_ref
+            .as_ref()
+            .and_then(|state| state.last_root.as_ref())?;
+
+        Some(Ref::map(state_ref, |state_ref| {
+            let state = state_ref.as_ref().unwrap();
+            state.last_root.as_ref().unwrap()
+        }))
     }
 
     fn node_ref(&self) -> Option<NodeRef> {

@@ -4,169 +4,35 @@ use super::{Transformer, VDiff, VNode};
 use crate::html::{AnyScope, Component, ComponentUpdate, NodeRef, Scope, Scoped};
 use cfg_if::cfg_if;
 use std::any::TypeId;
+use std::borrow::Borrow;
 use std::fmt;
-use std::mem::replace;
 cfg_if! {
     if #[cfg(feature = "std_web")] {
-        use stdweb::web::{Element, Node};
+        use stdweb::web::Element;
     } else if #[cfg(feature = "web_sys")] {
-        use web_sys::{Element, Node};
+        use web_sys::Element;
     }
 }
 
 /// A virtual component.
-#[derive(Clone)]
 pub struct VComp {
     type_id: TypeId,
-    state: MountState,
+    scope: Option<Box<dyn Scoped>>,
+    props: Option<Box<dyn Mountable>>,
     pub(crate) key: Option<String>,
 }
 
-impl VComp {
-    pub(crate) fn first_node(&self) -> Node {
-        match &self.state {
-            MountState::Mounted(scope) => scope
-                .node_ref()
-                .expect("VComp should always wrap a node")
-                .get()
-                .expect("VComp should always wrap a node"),
-            _ => {
-                panic!("VComp has no first node when not mounted");
-            }
-        }
-    }
-}
-
-enum MountState {
-    Unmounted(Box<dyn Mountable>),
-    Mounted(Box<dyn Scoped>),
-    Mounting,
-    Detached,
-    Overwritten,
-}
-
-impl Clone for MountState {
+impl Clone for VComp {
     fn clone(&self) -> Self {
-        match &self {
-            Self::Unmounted(mountable) => Self::Unmounted(mountable.copy()),
-            Self::Mounted(_) => panic!("Mounted components are not allowed to be cloned!"),
-            Self::Mounting => Self::Mounting,
-            Self::Detached => Self::Detached,
-            Self::Overwritten => Self::Overwritten,
+        if self.scope.is_some() {
+            panic!("Mounted components are not allowed to be cloned!");
         }
-    }
-}
 
-impl VComp {
-    /// This method prepares a generator to make a new instance of the `Component`.
-    pub fn new<COMP>(props: COMP::Properties, node_ref: NodeRef, key: Option<String>) -> Self
-    where
-        COMP: Component,
-    {
-        VComp {
-            type_id: TypeId::of::<COMP>(),
-            state: MountState::Unmounted(Box::new(Unmounted::<COMP>::new(props, node_ref))),
-            key,
-        }
-    }
-}
-
-trait Mountable {
-    fn copy(&self) -> Box<dyn Mountable>;
-    fn mount(
-        self: Box<Self>,
-        parent_scope: &AnyScope,
-        parent: Element,
-        next_sibling: NodeRef,
-    ) -> Box<dyn Scoped>;
-    fn overwrite(self: Box<Self>, scope: &Box<dyn Scoped>, next_sibling: NodeRef);
-}
-
-struct Unmounted<COMP: Component> {
-    props: COMP::Properties,
-    node_ref: NodeRef,
-}
-
-impl<COMP: Component> Unmounted<COMP> {
-    pub fn new(props: COMP::Properties, node_ref: NodeRef) -> Self {
-        Self { props, node_ref }
-    }
-}
-
-impl<COMP: Component> Mountable for Unmounted<COMP> {
-    fn copy(&self) -> Box<dyn Mountable> {
-        let mountable: Box<Unmounted<COMP>> = Box::new(Unmounted {
-            props: self.props.clone(),
-            node_ref: self.node_ref.clone(),
-        });
-        mountable
-    }
-
-    fn mount(
-        self: Box<Self>,
-        parent_scope: &AnyScope,
-        parent: Element,
-        next_sibling: NodeRef,
-    ) -> Box<dyn Scoped> {
-        Box::new(Scope::mount_in_place(
-            parent,
-            Some(parent_scope.clone()),
-            next_sibling,
-            self.node_ref,
-            self.props,
-        ) as Scope<COMP>)
-    }
-
-    fn overwrite(self: Box<Self>, scope: &Box<dyn Scoped>, next_sibling: NodeRef) {
-        let scope: Scope<COMP> = scope.to_any().downcast();
-        scope.update(
-            ComponentUpdate::Properties(self.props, self.node_ref, next_sibling),
-            false,
-        );
-    }
-}
-
-impl VDiff for VComp {
-    fn detach(&mut self, _parent: &Element) {
-        if let MountState::Mounted(mut this) = replace(&mut self.state, MountState::Detached) {
-            this.destroy();
-        }
-    }
-
-    fn apply(
-        &mut self,
-        parent_scope: &AnyScope,
-        parent: &Element,
-        next_sibling: NodeRef,
-        ancestor: Option<VNode>,
-    ) -> NodeRef {
-        if let MountState::Unmounted(this) = replace(&mut self.state, MountState::Mounting) {
-            if let Some(mut ancestor) = ancestor {
-                if let VNode::VComp(ref mut vcomp) = &mut ancestor {
-                    // If the ancestor is a Component of the same type, don't recreate, keep the
-                    // old Component and update the properties.
-                    if self.type_id == vcomp.type_id {
-                        if let MountState::Mounted(scope) =
-                            replace(&mut vcomp.state, MountState::Overwritten)
-                        {
-                            let node = scope.node_ref();
-                            // Send properties update when the component is already rendered.
-                            this.overwrite(&scope, next_sibling);
-                            self.state = MountState::Mounted(scope);
-                            return node.unwrap();
-                        }
-                    }
-                }
-
-                ancestor.detach(parent);
-            }
-
-            let scope = this.mount(parent_scope, parent.to_owned(), next_sibling);
-            let node_ref = scope.node_ref().unwrap();
-            self.state = MountState::Mounted(scope);
-            node_ref
-        } else {
-            unreachable!("Only unmounted components can be mounted");
+        Self {
+            type_id: self.type_id.clone(),
+            scope: None,
+            props: self.props.as_ref().map(|m| m.copy()),
+            key: self.key.clone(),
         }
     }
 }
@@ -219,6 +85,117 @@ where
 {
     fn from(vchild: VChild<COMP>) -> Self {
         VComp::new::<COMP>(vchild.props, vchild.node_ref, vchild.key)
+    }
+}
+
+impl VComp {
+    /// Creates a new `VComp` instance.
+    pub fn new<COMP>(props: COMP::Properties, node_ref: NodeRef, key: Option<String>) -> Self
+    where
+        COMP: Component,
+    {
+        VComp {
+            type_id: TypeId::of::<COMP>(),
+            props: Some(Box::new(PropsWrapper::<COMP>::new(props, node_ref))),
+            scope: None,
+            key,
+        }
+    }
+
+    pub(crate) fn node_ref(&self) -> Option<NodeRef> {
+        self.scope.as_ref().and_then(|scope| scope.node_ref())
+    }
+}
+
+trait Mountable {
+    fn copy(&self) -> Box<dyn Mountable>;
+    fn mount(
+        self: Box<Self>,
+        parent_scope: &AnyScope,
+        parent: Element,
+        next_sibling: NodeRef,
+    ) -> Box<dyn Scoped>;
+    fn reuse(self: Box<Self>, scope: &dyn Scoped, next_sibling: NodeRef);
+}
+
+struct PropsWrapper<COMP: Component> {
+    props: COMP::Properties,
+    node_ref: NodeRef,
+}
+
+impl<COMP: Component> PropsWrapper<COMP> {
+    pub fn new(props: COMP::Properties, node_ref: NodeRef) -> Self {
+        Self { props, node_ref }
+    }
+}
+
+impl<COMP: Component> Mountable for PropsWrapper<COMP> {
+    fn copy(&self) -> Box<dyn Mountable> {
+        let wrapper: PropsWrapper<COMP> = PropsWrapper {
+            props: self.props.clone(),
+            node_ref: self.node_ref.clone(),
+        };
+        Box::new(wrapper)
+    }
+
+    fn mount(
+        self: Box<Self>,
+        parent_scope: &AnyScope,
+        parent: Element,
+        next_sibling: NodeRef,
+    ) -> Box<dyn Scoped> {
+        let scope: Scope<COMP> = Scope::mount_in_place(
+            parent,
+            parent_scope.clone().into(),
+            next_sibling,
+            self.node_ref,
+            self.props,
+        );
+        Box::new(scope)
+    }
+
+    fn reuse(self: Box<Self>, scope: &dyn Scoped, next_sibling: NodeRef) {
+        let scope: Scope<COMP> = scope.to_any().downcast();
+        scope.update(
+            ComponentUpdate::Properties(self.props, self.node_ref, next_sibling),
+            false,
+        );
+    }
+}
+
+impl VDiff for VComp {
+    fn detach(&mut self, _parent: &Element) {
+        self.scope.take().expect("VComp is not mounted").destroy();
+    }
+
+    fn apply(
+        &mut self,
+        parent_scope: &AnyScope,
+        parent: &Element,
+        next_sibling: NodeRef,
+        ancestor: Option<VNode>,
+    ) -> NodeRef {
+        let mountable = self.props.take().expect("VComp has already been mounted");
+
+        if let Some(mut ancestor) = ancestor {
+            if let VNode::VComp(ref mut vcomp) = &mut ancestor {
+                // If the ancestor is the same type, reuse it and update its properties
+                if self.type_id == vcomp.type_id {
+                    let scope = vcomp.scope.take().expect("VComp is not mounted");
+                    let node_ref = scope.node_ref().expect("VComp is not mounted");
+                    mountable.reuse(scope.borrow(), next_sibling);
+                    self.scope = Some(scope);
+                    return node_ref;
+                }
+            }
+
+            ancestor.detach(parent);
+        }
+
+        let scope = mountable.mount(parent_scope, parent.to_owned(), next_sibling);
+        let node_ref = scope.node_ref().expect("VComp is not mounted");
+        self.scope = Some(scope);
+        node_ref
     }
 }
 
