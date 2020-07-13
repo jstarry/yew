@@ -206,7 +206,8 @@ impl VTag {
     /// TODO(#943): Compare references of handler to do listeners update better
     fn recreate_listeners(&mut self, ancestor: &mut Option<Box<Self>>) {
         if let Some(ancestor) = ancestor.as_mut() {
-            ancestor.captured.clear();
+            self.captured.extend(ancestor.captured.drain(..));
+            return;
         }
 
         let element = self.reference.clone().expect("element expected");
