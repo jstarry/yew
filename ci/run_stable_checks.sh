@@ -17,6 +17,16 @@ cargo check --all
   && cargo check --features cbor,msgpack,toml,yaml \
   && cargo clippy --features cbor,msgpack,toml,yaml -- --deny=warnings)
 
+(cd yewtil \
+  && cargo check --features all \
+  && cargo clippy --features all)
+
+(cd yew-router \
+  && cargo check --features service \
+  && cargo clippy --features service \
+  && cargo check --no-default-features --features std_web,core,service \
+  && cargo clippy --no-default-features --features std_web,core,service)
+
 # Check stdweb
 pushd yew-stdweb
 cargo fmt --all -- --check
