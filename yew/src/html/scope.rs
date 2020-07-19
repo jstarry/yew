@@ -475,6 +475,8 @@ where
                 let last_root = state.last_root.as_mut();
                 let parent_scope = state.scope.clone().into();
                 new_root.expand(&parent_scope, last_root);
+            } else {
+                panic!("why you ain't got a new root");
             }
         }
     }
