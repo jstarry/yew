@@ -2,19 +2,15 @@
 
 use super::{Key, Transformer, VDiff, VNode};
 use crate::html::{AnyScope, Component, ComponentUpdate, NodeRef, Scope, Scoped};
-use crate::utils::document;
-use cfg_if::cfg_if;
 use std::any::TypeId;
 use std::borrow::Borrow;
 use std::fmt;
 use std::ops::Deref;
-cfg_if! {
-    if #[cfg(feature = "std_web")] {
-        use stdweb::web::{Element, Node};
-    } else if #[cfg(feature = "web_sys")] {
-        use web_sys::{Element, Node};
-    }
-}
+
+#[cfg(feature = "std_web")]
+use stdweb::web::Element;
+#[cfg(feature = "web_sys")]
+use web_sys::Element;
 
 /// A virtual component.
 pub struct VComp {
@@ -115,14 +111,12 @@ impl VComp {
 
 trait Mountable {
     fn copy(&self) -> Box<dyn Mountable>;
-    fn mount(
+    fn create(
         self: Box<Self>,
         node_ref: NodeRef,
         parent_scope: &AnyScope,
-        parent: Element,
-        next_sibling: NodeRef,
     ) -> Box<dyn Scoped>;
-    fn reuse(self: Box<Self>, scope: &dyn Scoped, next_sibling: NodeRef);
+    fn reuse(self: Box<Self>, scope: &dyn Scoped);
 }
 
 struct PropsWrapper<COMP: Component> {
@@ -143,18 +137,13 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
         Box::new(wrapper)
     }
 
-    fn mount(
+    fn create(
         self: Box<Self>,
         node_ref: NodeRef,
         parent_scope: &AnyScope,
-        parent: Element,
-        next_sibling: NodeRef,
     ) -> Box<dyn Scoped> {
         let scope: Scope<COMP> = Scope::new(Some(parent_scope.clone()));
-        let scope = scope.mount_in_place(
-            parent,
-            next_sibling,
-            Some(VNode::VRef(node_ref.get().unwrap())),
+        let scope = scope.create_sync(
             node_ref,
             self.props,
         );
@@ -162,9 +151,9 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
         Box::new(scope)
     }
 
-    fn reuse(self: Box<Self>, scope: &dyn Scoped, next_sibling: NodeRef) {
+    fn reuse(self: Box<Self>, scope: &dyn Scoped) {
         let scope: Scope<COMP> = scope.to_any().downcast();
-        scope.update(ComponentUpdate::Properties(self.props, next_sibling));
+        scope.update(ComponentUpdate::Properties(self.props));
     }
 }
 
@@ -173,40 +162,51 @@ impl VDiff for VComp {
         self.scope.take().expect("VComp is not mounted").destroy();
     }
 
-    fn apply(
+    fn expand(
         &mut self,
         parent_scope: &AnyScope,
-        parent: &Element,
-        next_sibling: NodeRef,
-        ancestor: Option<VNode>,
-    ) -> NodeRef {
+        ancestor: Option<&mut VNode>,
+    ) {
         let mountable = self.props.take().expect("VComp has already been mounted");
-
         if let Some(mut ancestor) = ancestor {
             if let VNode::VComp(ref mut vcomp) = &mut ancestor {
                 // If the ancestor is the same type, reuse it and update its properties
                 if self.type_id == vcomp.type_id && self.key == vcomp.key {
                     self.node_ref.link(vcomp.node_ref.clone());
                     let scope = vcomp.scope.take().expect("VComp is not mounted");
-                    mountable.reuse(scope.borrow(), next_sibling);
+                    mountable.reuse(scope.borrow());
                     self.scope = Some(scope);
-                    return vcomp.node_ref.clone();
+                    return;
+                }
+            }
+        }
+
+        self.scope = Some(mountable.create(
+            self.node_ref.clone(),
+            parent_scope,
+        ));
+    }
+
+    fn apply(
+        &mut self,
+        parent: &Element,
+        next_sibling: NodeRef,
+        ancestor: Option<VNode>,
+    ) -> NodeRef {
+        if let Some(mut ancestor) = ancestor {
+            let mut should_detach = true;
+            if let VNode::VComp(ref mut vcomp) = &mut ancestor {
+                if self.type_id == vcomp.type_id && self.key == vcomp.key {
+                    should_detach = false;
                 }
             }
 
-            ancestor.detach(parent);
+            if should_detach {
+                ancestor.detach(parent);
+            }
         }
 
-        let placeholder: Node = document().create_text_node("").into();
-        super::insert_node(&placeholder, parent, next_sibling.get());
-        self.node_ref.set(Some(placeholder));
-        let scope = mountable.mount(
-            self.node_ref.clone(),
-            parent_scope,
-            parent.to_owned(),
-            next_sibling,
-        );
-        self.scope = Some(scope);
+        self.scope.as_ref().expect("VComp should be expanded").render_sync(parent.clone(), next_sibling);
         self.node_ref.clone()
     }
 }
@@ -280,8 +280,15 @@ impl<COMP: Component> fmt::Debug for VChild<COMP> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::document;
     use crate::macros::Properties;
     use crate::{html, Children, Component, ComponentLink, Html, NodeRef, ShouldRender};
+
+    #[cfg(feature = "std_web")]
+    use stdweb::web::Node;
+    #[cfg(feature = "web_sys")]
+    use web_sys::Node;
+
     #[cfg(feature = "wasm_test")]
     use wasm_bindgen_test::{wasm_bindgen_test as test, wasm_bindgen_test_configure};
 
@@ -470,7 +477,7 @@ mod tests {
         // clear parent
         parent.set_inner_html("");
 
-        node.apply(&scope, &parent, NodeRef::default(), None);
+        node.apply(&parent, NodeRef::default(), None);
         parent.inner_html()
     }
 

@@ -189,6 +189,12 @@ pub(crate) trait VDiff {
     /// Remove self from parent.
     fn detach(&mut self, parent: &Element);
 
+    fn expand(
+        &mut self,
+        parent_scope: &AnyScope,
+        ancestor: Option<&mut VNode>,
+    );
+
     /// Scoped diff apply to other tree.
     ///
     /// Virtual rendering for the node. It uses parent node and existing
@@ -196,8 +202,6 @@ pub(crate) trait VDiff {
     /// the actual DOM representation.
     ///
     /// Parameters:
-    /// - `parent_scope`: the parent `Scope` used for passing messages to the
-    ///   parent `Component`.
     /// - `parent`: the parent node in the DOM.
     /// - `next_sibling`: the next sibling, used to efficiently find where to
     ///   put the node.
@@ -216,7 +220,6 @@ pub(crate) trait VDiff {
     /// `Node` directly (always removes the `Node` that exists).
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -357,7 +360,6 @@ mod layout_tests {
             let mut node_clone = layout.node.clone();
             wasm_bindgen_test::console_log!("Independently reapply layout '{}'", layout.name);
             node_clone.apply(
-                &parent_scope,
                 &parent_element,
                 next_sibling.clone(),
                 Some(node),
@@ -371,7 +373,6 @@ mod layout_tests {
 
             // Detach
             empty_node.clone().apply(
-                &parent_scope,
                 &parent_element,
                 next_sibling.clone(),
                 Some(node_clone),
@@ -390,7 +391,6 @@ mod layout_tests {
             let mut next_node = layout.node.clone();
             wasm_bindgen_test::console_log!("Sequentially apply layout '{}'", layout.name);
             next_node.apply(
-                &parent_scope,
                 &parent_element,
                 next_sibling.clone(),
                 ancestor,
@@ -409,7 +409,6 @@ mod layout_tests {
             let mut next_node = layout.node.clone();
             wasm_bindgen_test::console_log!("Sequentially detach layout '{}'", layout.name);
             next_node.apply(
-                &parent_scope,
                 &parent_element,
                 next_sibling.clone(),
                 ancestor,

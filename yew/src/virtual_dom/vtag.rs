@@ -69,7 +69,7 @@ pub struct VTag {
     /// List of attributes.
     pub attributes: Attributes,
     /// List of children nodes
-    pub children: VList,
+    pub children: VNode,
     /// Contains a value of an
     /// [InputElement](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input).
     pub value: Option<String>,
@@ -122,7 +122,7 @@ impl VTag {
             attributes: Attributes::new(),
             listeners: Vec::new(),
             captured: Vec::new(),
-            children: VList::new(),
+            children: VNode::VList(VList::new()),
             node_ref: NodeRef::default(),
             key: None,
             value: None,
@@ -140,12 +140,16 @@ impl VTag {
 
     /// Add `VNode` child.
     pub fn add_child(&mut self, child: VNode) {
-        self.children.add_child(child);
+        if let VNode::VList(list) = &mut self.children {
+            list.add_child(child);
+        }
     }
 
     /// Add multiple `VNode` children.
     pub fn add_children(&mut self, children: impl IntoIterator<Item = VNode>) {
-        self.children.add_children(children);
+        if let VNode::VList(list) = &mut self.children {
+            list.add_children(children);
+        }
     }
 
     /// Sets `value` for an
@@ -454,11 +458,22 @@ impl VDiff for VTag {
         }
     }
 
+    fn expand(
+        &mut self,
+        parent_scope: &AnyScope,
+        ancestor: Option<&mut VNode>,
+    ) {
+        if let Some(VNode::VTag(vtag)) = ancestor {
+            if self.tag == vtag.tag && self.key == vtag.key {
+                self.children.expand(parent_scope, Some(&mut vtag.children));
+            }
+        }
+    }
+
     /// Renders virtual tag over DOM `Element`, but it also compares this with an ancestor `VTag`
     /// to compute what to patch in the actual DOM nodes.
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -495,13 +510,16 @@ impl VDiff for VTag {
 
         // Process children
         let element = self.reference.as_ref().expect("Reference should be set");
-        if !self.children.is_empty() {
-            self.children.apply(
-                parent_scope,
-                element,
-                NodeRef::default(),
-                ancestor_tag.map(|a| a.children.into()),
-            );
+        if let VNode::VList(list) = &mut self.children {
+            if !list.is_empty() {
+                list.apply(
+                    element,
+                    NodeRef::default(),
+                    ancestor_tag.map(|a| a.children),
+                );
+            } else if let Some(mut ancestor_tag) = ancestor_tag {
+                ancestor_tag.children.detach(element);
+            }
         } else if let Some(mut ancestor_tag) = ancestor_tag {
             ancestor_tag.children.detach(element);
         }

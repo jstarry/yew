@@ -47,10 +47,15 @@ impl VDiff for VText {
         }
     }
 
+    fn expand(
+        &mut self,
+        _parent_scope: &AnyScope,
+        _ancestor: Option<&mut VNode>,
+    ) {}
+
     /// Renders virtual node over existing `TextNode`, but only if value of text has changed.
     fn apply(
         &mut self,
-        _parent_scope: &AnyScope,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,

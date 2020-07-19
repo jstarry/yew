@@ -103,23 +103,36 @@ impl VDiff for VNode {
         }
     }
 
-    fn apply(
+    fn expand(
         &mut self,
         parent_scope: &AnyScope,
+        ancestor: Option<&mut VNode>,
+    ) {
+        match *self {
+            VNode::VTag(ref mut vtag) => vtag.expand(parent_scope, ancestor),
+            VNode::VText(ref mut vtext) => vtext.expand(parent_scope, ancestor),
+            VNode::VComp(ref mut vcomp) => vcomp.expand(parent_scope, ancestor),
+            VNode::VList(ref mut vlist) => vlist.expand(parent_scope, ancestor),
+            VNode::VRef(_) => {}
+        }
+    }
+
+    fn apply(
+        &mut self,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
     ) -> NodeRef {
         match *self {
-            VNode::VTag(ref mut vtag) => vtag.apply(parent_scope, parent, next_sibling, ancestor),
+            VNode::VTag(ref mut vtag) => vtag.apply(parent, next_sibling, ancestor),
             VNode::VText(ref mut vtext) => {
-                vtext.apply(parent_scope, parent, next_sibling, ancestor)
+                vtext.apply(parent, next_sibling, ancestor)
             }
             VNode::VComp(ref mut vcomp) => {
-                vcomp.apply(parent_scope, parent, next_sibling, ancestor)
+                vcomp.apply(parent, next_sibling, ancestor)
             }
             VNode::VList(ref mut vlist) => {
-                vlist.apply(parent_scope, parent, next_sibling, ancestor)
+                vlist.apply(parent, next_sibling, ancestor)
             }
             VNode::VRef(ref mut node) => {
                 if let Some(mut ancestor) = ancestor {

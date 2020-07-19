@@ -1,7 +1,7 @@
 //! This module contains the `App` struct, which is used to bootstrap
 //! a component in an isolated scope.
 
-use crate::html::{Component, ComponentLink, NodeRef, Scope};
+use crate::html::{Component, ComponentLink, NodeRef, Scope, Scoped};
 use crate::utils::document;
 use cfg_if::cfg_if;
 cfg_if! {
@@ -40,13 +40,7 @@ where
     /// use the `mount_with_props` method.
     pub fn mount(self, element: Element) -> ComponentLink<COMP> {
         clear_element(&element);
-        self.scope.mount_in_place(
-            element,
-            NodeRef::default(),
-            None,
-            NodeRef::default(),
-            COMP::Properties::default(),
-        )
+        self.mount_app(element, COMP::Properties::default())
     }
 
     /// Alias to `mount("body", ...)`.
@@ -75,13 +69,7 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
-            html_element,
-            NodeRef::default(),
-            None,
-            NodeRef::default(),
-            COMP::Properties::default(),
-        )
+        self.mount_app(html_element, COMP::Properties::default())
     }
 }
 
@@ -105,8 +93,7 @@ where
         props: COMP::Properties,
     ) -> ComponentLink<COMP> {
         clear_element(&element);
-        self.scope
-            .mount_in_place(element, NodeRef::default(), None, NodeRef::default(), props)
+        self.mount_app(element, props)
     }
 
     /// Alias to `mount_with_props("body", ...)`.
@@ -135,13 +122,19 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
-            html_element,
-            NodeRef::default(),
-            None,
+        self.mount_app(html_element, props)
+    }
+
+    fn mount_app(&self, parent: Element, props: COMP::Properties) -> ComponentLink<COMP> {
+        let scope = self.scope.clone().create(
             NodeRef::default(),
             props,
-        )
+        );
+        scope.render_sync(
+            parent,
+            NodeRef::default(),
+        );
+        scope
     }
 }
 

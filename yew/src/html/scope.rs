@@ -1,4 +1,4 @@
-use super::{Callback, Component, NodeRef, Renderable};
+use super::{Callback, Component, NodeRef};
 use crate::scheduler::{scheduler, ComponentRunnableType, Runnable, Shared};
 use crate::virtual_dom::{VDiff, VNode};
 use cfg_if::cfg_if;
@@ -24,7 +24,7 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     /// Wraps batch of messages for a component.
     MessageBatch(Vec<COMP::Message>),
     /// Wraps properties and next sibling for a component.
-    Properties(COMP::Properties, NodeRef),
+    Properties(COMP::Properties),
 }
 
 /// Untyped scope used for accessing parent scope
@@ -71,6 +71,7 @@ impl AnyScope {
 
 pub(crate) trait Scoped {
     fn to_any(&self) -> AnyScope;
+    fn render_sync(&self, parent: Element, next_sibling: NodeRef);
     fn root_vnode(&self) -> Option<Ref<'_, VNode>>;
     fn destroy(&mut self);
 }
@@ -80,13 +81,26 @@ impl<COMP: Component> Scoped for Scope<COMP> {
         self.clone().into()
     }
 
+    fn render_sync(&self, parent: Element, next_sibling: NodeRef) {
+        if let Some(mut state) = self.state.borrow_mut().as_mut() {
+            state.position = Some(Position {
+                parent, next_sibling
+            });
+        }
+
+        let first_render = self.state.borrow().as_ref().map(|state| state.last_root.is_none()).unwrap_or_default();
+        Box::new(RenderComponent {
+            state: self.state.clone(),
+            first_render,
+        }).run();
+    }
+
     fn root_vnode(&self) -> Option<Ref<'_, VNode>> {
         let state_ref = self.state.borrow();
         state_ref.as_ref().and_then(|state| {
             state
                 .last_root
                 .as_ref()
-                .or_else(|| state.placeholder.as_ref())
         })?;
 
         Some(Ref::map(state_ref, |state_ref| {
@@ -94,7 +108,6 @@ impl<COMP: Component> Scoped for Scope<COMP> {
             state
                 .last_root
                 .as_ref()
-                .or_else(|| state.placeholder.as_ref())
                 .unwrap()
         }))
     }
@@ -150,12 +163,10 @@ impl<COMP: Component> Scope<COMP> {
         Scope { parent, state }
     }
 
+
     /// Mounts a component with `props` to the specified `element` in the DOM.
-    pub(crate) fn mount_in_place(
+    pub(crate) fn create(
         self,
-        parent: Element,
-        next_sibling: NodeRef,
-        placeholder: Option<VNode>,
         node_ref: NodeRef,
         props: COMP::Properties,
     ) -> Scope<COMP> {
@@ -166,9 +177,6 @@ impl<COMP: Component> Scope<COMP> {
             ComponentRunnableType::Create,
             Box::new(CreateComponent {
                 state: self.state.clone(),
-                parent,
-                next_sibling,
-                placeholder,
                 node_ref,
                 scope: self.clone(),
                 props,
@@ -177,6 +185,25 @@ impl<COMP: Component> Scope<COMP> {
         self.update(ComponentUpdate::First);
         drop(lock);
         scheduler.start();
+        self
+    }
+
+    /// Mounts a component with `props` to the specified `element` in the DOM.
+    pub(crate) fn create_sync(
+        self,
+        node_ref: NodeRef,
+        props: COMP::Properties,
+    ) -> Scope<COMP> {
+        Box::new(CreateComponent {
+            state: self.state.clone(),
+            node_ref,
+            scope: self.clone(),
+            props,
+        }).run();
+        Box::new(UpdateComponent {
+            state: self.state.clone(),
+            update: ComponentUpdate::First,
+        }).run();
         self
     }
 
@@ -269,13 +296,16 @@ impl<COMP: Component> Scope<COMP> {
     }
 }
 
-struct ComponentState<COMP: Component> {
+struct Position {
     parent: Element,
     next_sibling: NodeRef,
+}
+
+struct ComponentState<COMP: Component> {
+    position: Option<Position>,
     node_ref: NodeRef,
     scope: Scope<COMP>,
     component: Box<COMP>,
-    placeholder: Option<VNode>,
     last_root: Option<VNode>,
     new_root: Option<VNode>,
     has_rendered: bool,
@@ -286,21 +316,16 @@ impl<COMP: Component> ComponentState<COMP> {
     /// Creates a new `ComponentState`, also invokes the `create()`
     /// method on component to create it.
     fn new(
-        parent: Element,
-        next_sibling: NodeRef,
-        placeholder: Option<VNode>,
         node_ref: NodeRef,
         scope: Scope<COMP>,
         props: COMP::Properties,
     ) -> Self {
         let component = Box::new(COMP::create(props, scope.clone()));
         Self {
-            parent,
-            next_sibling,
+            position: None,
             node_ref,
             scope,
             component,
-            placeholder,
             last_root: None,
             new_root: None,
             has_rendered: false,
@@ -317,9 +342,6 @@ where
     COMP: Component,
 {
     state: Shared<Option<ComponentState<COMP>>>,
-    parent: Element,
-    next_sibling: NodeRef,
-    placeholder: Option<VNode>,
     node_ref: NodeRef,
     scope: Scope<COMP>,
     props: COMP::Properties,
@@ -333,9 +355,6 @@ where
         let mut current_state = self.state.borrow_mut();
         if current_state.is_none() {
             *current_state = Some(ComponentState::new(
-                self.parent,
-                self.next_sibling,
-                self.placeholder,
                 self.node_ref,
                 self.scope,
                 self.props,
@@ -370,30 +389,72 @@ where
                 _ => false,
             };
 
+            let update_sync = match &self.update {
+                ComponentUpdate::First => true,
+                ComponentUpdate::Properties(_) => true,
+                _ => false,
+            };
+
             let should_update = match self.update {
                 ComponentUpdate::First => true,
                 ComponentUpdate::Message(message) => state.component.update(message),
                 ComponentUpdate::MessageBatch(messages) => messages
                     .into_iter()
                     .fold(false, |acc, msg| state.component.update(msg) || acc),
-                ComponentUpdate::Properties(props, next_sibling) => {
+                ComponentUpdate::Properties(props) => {
                     // When components are updated, their siblings were likely also updated
-                    state.next_sibling = next_sibling;
+                    // state.next_sibling = next_sibling;
                     state.component.change(props)
                 }
             };
 
             if should_update {
-                state.new_root = Some(state.component.render());
-                scheduler().push_comp(
-                    ComponentRunnableType::Render,
-                    Box::new(RenderComponent {
+                state.new_root = Some(state.component.view());
+                if update_sync {
+                    Box::new(ExpandComponent {
                         state: self.state,
-                        first_render: first_update,
-                    }),
-                );
+                    }).run();
+                } else {
+                    scheduler().push_comp(
+                        ComponentRunnableType::Expand,
+                        Box::new(ExpandComponent {
+                            state: self.state.clone(),
+                        }),
+                    );
+                    scheduler().push_comp(
+                        ComponentRunnableType::Render,
+                        Box::new(RenderComponent {
+                            state: self.state,
+                            first_render: first_update,
+                        }),
+                    );
+                }
             };
         };
+    }
+}
+
+/// A `Runnable` task which expands a virtual DOM `Component` to
+/// prepare it for rendering to the screen.
+struct ExpandComponent<COMP>
+where
+    COMP: Component,
+{
+    state: Shared<Option<ComponentState<COMP>>>,
+}
+
+impl<COMP> Runnable for ExpandComponent<COMP>
+where
+    COMP: Component,
+{
+    fn run(self: Box<Self>) {
+        if let Some(state) = self.state.borrow_mut().as_mut() {
+            if let Some(new_root) = state.new_root.as_mut() {
+                let last_root = state.last_root.as_mut();
+                let parent_scope = state.scope.clone().into();
+                new_root.expand(&parent_scope, last_root);
+            }
+        }
     }
 }
 
@@ -419,19 +480,21 @@ where
             }
 
             if let Some(mut new_root) = state.new_root.take() {
-                let last_root = state.last_root.take().or_else(|| state.placeholder.take());
-                let parent_scope = state.scope.clone().into();
-                let next_sibling = state.next_sibling.clone();
-                let node = new_root.apply(&parent_scope, &state.parent, next_sibling, last_root);
-                state.node_ref.link(node);
-                state.last_root = Some(new_root);
-                scheduler().push_comp(
-                    ComponentRunnableType::Rendered,
-                    Box::new(RenderedComponent {
-                        state: state_clone,
-                        first_render: self.first_render,
-                    }),
-                );
+                let last_root = state.last_root.take();
+                if let Some(position) = &state.position {
+                    let next_sibling = position.next_sibling.clone();
+                    let node = new_root.apply(&position.parent, next_sibling, last_root);
+                    state.node_ref.link(node);
+                    state.last_root = Some(new_root);
+                    scheduler().push_comp(
+                        ComponentRunnableType::Rendered,
+                        Box::new(RenderedComponent {
+                            state: state_clone,
+                            first_render: self.first_render,
+                        }),
+                    );
+
+                }
             }
         }
     }
@@ -482,7 +545,9 @@ where
         if let Some(mut state) = self.state.borrow_mut().take() {
             state.component.destroy();
             if let Some(last_frame) = &mut state.last_root {
-                last_frame.detach(&state.parent);
+                if let Some(position) = state.position {
+                    last_frame.detach(&position.parent);
+                }
             }
         }
     }
@@ -610,7 +675,7 @@ mod tests {
         let lifecycle = props.lifecycle.clone();
 
         lifecycle.borrow_mut().clear();
-        scope.mount_in_place(el, NodeRef::default(), None, NodeRef::default(), props);
+        scope.create(el, NodeRef::default(), props);
 
         assert_eq!(&lifecycle.borrow_mut().deref()[..], expected);
     }
