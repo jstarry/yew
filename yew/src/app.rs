@@ -1,7 +1,7 @@
 //! This module contains the `App` struct, which is used to bootstrap
 //! a component in an isolated scope.
 
-use crate::html::{Component, ComponentLink, NodeRef, Scope, Scoped};
+use crate::html::{Component, ComponentLink, NodeRef, Scope};
 use crate::utils::document;
 use cfg_if::cfg_if;
 cfg_if! {
@@ -130,7 +130,7 @@ where
             NodeRef::default(),
             props,
         );
-        scope.render_sync(
+        scope.render(
             parent,
             NodeRef::default(),
         );

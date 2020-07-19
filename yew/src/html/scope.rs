@@ -163,6 +163,22 @@ impl<COMP: Component> Scope<COMP> {
         Scope { parent, state }
     }
 
+    pub(crate) fn render(&self, parent: Element, next_sibling: NodeRef) {
+        if let Some(mut state) = self.state.borrow_mut().as_mut() {
+            state.position = Some(Position {
+                parent, next_sibling
+            });
+        }
+
+        let first_render = self.state.borrow().as_ref().map(|state| state.last_root.is_none()).unwrap_or_default();
+        scheduler().push_comp(
+            ComponentRunnableType::Render,
+            Box::new(RenderComponent {
+                state: self.state.clone(),
+                first_render,
+            })
+        );
+    }
 
     /// Mounts a component with `props` to the specified `element` in the DOM.
     pub(crate) fn create(
