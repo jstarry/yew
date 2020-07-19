@@ -378,24 +378,27 @@ where
 {
     fn run(self: Box<Self>) {
         let state_clone = self.state.clone();
+        let mut first_update = false;
+        let mut update_sync = false;
+        let mut should_update = false;
         if let Some(mut state) = state_clone.borrow_mut().as_mut() {
             if state.new_root.is_some() {
                 state.pending_updates.push(self);
                 return;
             }
 
-            let first_update = match self.update {
+            first_update = match self.update {
                 ComponentUpdate::First => true,
                 _ => false,
             };
 
-            let update_sync = match &self.update {
+            update_sync = match &self.update {
                 ComponentUpdate::First => true,
                 ComponentUpdate::Properties(_) => true,
                 _ => false,
             };
 
-            let should_update = match self.update {
+            should_update = match self.update {
                 ComponentUpdate::First => true,
                 ComponentUpdate::Message(message) => state.component.update(message),
                 ComponentUpdate::MessageBatch(messages) => messages
@@ -410,27 +413,30 @@ where
 
             if should_update {
                 state.new_root = Some(state.component.view());
-                if update_sync {
+            }
+        }
+
+        if should_update {
+            if update_sync {
+                Box::new(ExpandComponent {
+                    state: self.state,
+                }).run();
+            } else {
+                scheduler().push_comp(
+                    ComponentRunnableType::Expand,
                     Box::new(ExpandComponent {
+                        state: self.state.clone(),
+                    }),
+                );
+                scheduler().push_comp(
+                    ComponentRunnableType::Render,
+                    Box::new(RenderComponent {
                         state: self.state,
-                    }).run();
-                } else {
-                    scheduler().push_comp(
-                        ComponentRunnableType::Expand,
-                        Box::new(ExpandComponent {
-                            state: self.state.clone(),
-                        }),
-                    );
-                    scheduler().push_comp(
-                        ComponentRunnableType::Render,
-                        Box::new(RenderComponent {
-                            state: self.state,
-                            first_render: first_update,
-                        }),
-                    );
-                }
-            };
-        };
+                        first_render: first_update,
+                    }),
+                );
+            }
+        }
     }
 }
 
