@@ -517,7 +517,6 @@ where
                             first_render: self.first_render,
                         }),
                     );
-
                 }
             }
         }

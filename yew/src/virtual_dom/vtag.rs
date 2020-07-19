@@ -466,8 +466,10 @@ impl VDiff for VTag {
         if let Some(VNode::VTag(vtag)) = ancestor {
             if self.tag == vtag.tag && self.key == vtag.key {
                 self.children.expand(parent_scope, Some(&mut vtag.children));
+                return;
             }
         }
+        self.children.expand(parent_scope, None);
     }
 
     /// Renders virtual tag over DOM `Element`, but it also compares this with an ancestor `VTag`
