@@ -1,5 +1,5 @@
 // Naming this file use_context could be confusing. Not least to the IDE.
-use super::{get_current_scope, use_hook, Hook};
+use crate::{get_current_scope, use_hook, Hook, HookUpdater};
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
@@ -9,6 +9,60 @@ use yew::html::{AnyScope, Scope};
 use yew::{Children, Component, ComponentLink, Html, Properties};
 
 type ConsumerCallback<T> = Box<dyn Fn(Rc<T>)>;
+
+type UseContextOutput<T> = Option<Rc<T>>;
+
+pub fn use_context<T: Clone + PartialEq + 'static>() -> UseContextOutput<T> {
+    let scope = get_current_scope()
+        .expect("No current Scope. `use_context` can only be called inside function components");
+
+    use_hook::<UseContext<T>, _>((), move || {
+        let provider_scope = find_context_provider_scope::<T>(&scope);
+        let current_context =
+            with_provider_component(&provider_scope, |comp| Rc::clone(&comp.context));
+
+        UseContext {
+            provider_scope,
+            current_context,
+            callback: None,
+        }
+    })
+}
+
+struct UseContext<T2: Clone + PartialEq + 'static> {
+    provider_scope: Option<Scope<ContextProvider<T2>>>,
+    current_context: Option<Rc<T2>>,
+    callback: Option<Rc<ConsumerCallback<T2>>>,
+}
+impl<T: Clone + PartialEq + 'static> Hook for UseContext<T> {
+    fn tear_down(&mut self) {
+        if let Some(cb) = self.callback.take() {
+            drop(cb);
+        }
+    }
+
+    type Output = Option<Rc<T>>;
+    type Args = ();
+    fn runner(&mut self, _: Self::Args, updater: HookUpdater) -> Self::Output {
+        // setup a listener for the context provider to update us
+        let listener = move |ctx: Rc<T>| {
+            updater.callback(move |state: &mut Self| {
+                state.current_context = Some(ctx);
+                true
+            });
+        };
+        self.callback = Some(Rc::new(Box::new(listener)));
+
+        // Subscribe to the context provider with our callback
+        let weak_cb = Rc::downgrade(self.callback.as_ref().unwrap());
+        with_provider_component(&self.provider_scope, |comp| {
+            comp.subscribe_consumer(weak_cb)
+        });
+
+        // Return the current state
+        self.current_context.clone()
+    }
+}
 
 #[derive(Clone, PartialEq, Properties)]
 pub struct ContextProviderProps<T: Clone + PartialEq> {
@@ -26,8 +80,8 @@ impl<T: Clone + PartialEq> ContextProvider<T> {
     /// Add the callback to the subscriber list to be called whenever the context changes.
     /// The consumer is unsubscribed as soon as the callback is dropped.
     fn subscribe_consumer(&self, mut callback: Weak<ConsumerCallback<T>>) {
-        let mut consumers = self.consumers.borrow_mut();
         // consumers re-subscribe on every render. Try to keep the subscriber list small by reusing dead slots.
+        let mut consumers = self.consumers.borrow_mut();
         for cb in consumers.iter_mut() {
             if cb.strong_count() == 0 {
                 mem::swap(cb, &mut callback);
@@ -113,52 +167,4 @@ where
     provider_scope
         .as_ref()
         .and_then(|scope| scope.get_component().map(|comp| f(&*comp)))
-}
-
-pub fn use_context<T: Clone + PartialEq + 'static>() -> Option<Rc<T>> {
-    struct UseContextState<T2: Clone + PartialEq + 'static> {
-        provider_scope: Option<Scope<ContextProvider<T2>>>,
-        current_context: Option<Rc<T2>>,
-        callback: Option<Rc<ConsumerCallback<T2>>>,
-    }
-    impl<T: Clone + PartialEq + 'static> Hook for UseContextState<T> {
-        fn tear_down(&mut self) {
-            if let Some(cb) = self.callback.take() {
-                drop(cb);
-            }
-        }
-    }
-
-    let scope = get_current_scope()
-        .expect("No current Scope. `use_context` can only be called inside function components");
-
-    use_hook(
-        |state: &mut UseContextState<T>, hook_callback| {
-            state.callback = Some(Rc::new(Box::new(move |ctx: Rc<T>| {
-                hook_callback(
-                    |state: &mut UseContextState<T>| {
-                        state.current_context = Some(ctx);
-                        true
-                    },
-                    false, // run pre render
-                );
-            })));
-            let weak_cb = Rc::downgrade(state.callback.as_ref().unwrap());
-            with_provider_component(&state.provider_scope, |comp| {
-                comp.subscribe_consumer(weak_cb)
-            });
-
-            state.current_context.clone()
-        },
-        move || {
-            let provider_scope = find_context_provider_scope::<T>(&scope);
-            let current_context =
-                with_provider_component(&provider_scope, |comp| Rc::clone(&comp.context));
-            UseContextState {
-                provider_scope,
-                current_context,
-                callback: None,
-            }
-        },
-    )
 }

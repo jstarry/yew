@@ -1,26 +1,26 @@
 [workspace]
 members = [
   "yew",
-  "yew-components",
+  # "yew-components",
   "yew-macro",
   "yew-validation",
-
+  #
   # Router
   "yew-router",
   "yew-router-macro",
   "yew-router-route-parser",
-
+  #
   # Function components
   "yew-functional",
   "yew-functional-macro",
-
+  #
   # Utilities
   "yewtil",
   "yewtil-macro",
-
+  #
   # dsl
   "yew-dsl",
-
+  #
   # Examples
   "examples/boids",
   "examples/counter",
