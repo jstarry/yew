@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use instant::Instant;
 use person::PersonType;
 use yew::prelude::*;
@@ -32,7 +34,7 @@ pub struct Model {
     delta_ref: NodeRef,
 }
 
-impl Component for Model {
+impl LegacyComponent for Model {
     type Message = Msg;
     type Properties = ();
 
@@ -282,5 +284,5 @@ impl Model {
 
 fn main() {
     wasm_logger::init(wasm_logger::Config::new(log::Level::Trace));
-    yew::start_app::<Model>();
+    yew::start_app::<Legacy<Model>>();
 }

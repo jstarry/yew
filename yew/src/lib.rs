@@ -1,4 +1,4 @@
-#![allow(clippy::needless_doctest_main)]
+#![allow(clippy::needless_doctest_main, deprecated)]
 #![doc(html_logo_url = "https://static.yew.rs/logo.svg")]
 
 //! # Yew Framework - API Documentation
@@ -282,6 +282,7 @@ pub mod macros {
 
 pub mod app;
 pub mod callback;
+pub mod component;
 pub mod format;
 pub mod html;
 mod scheduler;
@@ -375,10 +376,11 @@ pub mod prelude {
     pub use crate::agent::{Bridge, Bridged, Dispatched, Threaded};
     pub use crate::app::App;
     pub use crate::callback::Callback;
+    pub use crate::component::{Component, Context};
     pub use crate::events::*;
     pub use crate::html::{
-        Children, ChildrenWithProps, Classes, Component, ComponentLink, Html, NodeRef, Properties,
-        ShouldRender,
+        Children, ChildrenWithProps, Classes, Component as LegacyComponent, ComponentLink, Html, Legacy,
+        NodeRef, Properties, ShouldRender,
     };
     pub use crate::macros::{classes, html, html_nested};
 
