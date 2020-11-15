@@ -29,7 +29,6 @@
 //! }
 //!
 //! struct Model {
-//!     link: ComponentLink<Self>,
 //!     value: i64,
 //! }
 //!
@@ -37,14 +36,13 @@
 //!     type Message = Msg;
 //!     type Properties = ();
 //!
-//!     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+//!     fn create(_ctx: &Link<Self>) -> Self {
 //!         Self {
-//!             link,
 //!             value: 0,
 //!         }
 //!     }
 //!
-//!     fn update(&mut self, msg: Self::Message) -> ShouldRender {
+//!     fn update(&mut self, ctx: &Link<Self>, msg: Self::Message) -> ShouldRender {
 //!         match msg {
 //!             Msg::AddOne => {
 //!                 self.value += 1;
@@ -53,14 +51,10 @@
 //!         }
 //!     }
 //!
-//!     fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-//!         false
-//!     }
-//!
-//!     fn view(&self) -> Html {
+//!     fn view(&self, ctx: &Link<Self>) -> Html {
 //!         html! {
 //!             <div>
-//!                 <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
+//!                 <button onclick=ctx.callback(|_| Msg::AddOne)>{ "+1" }</button>
 //!                 <p>{ self.value }</p>
 //!             </div>
 //!         }
@@ -136,30 +130,28 @@ pub use yew_macro::html;
 /// use yew::html::ChildrenRenderer;
 /// use yew::virtual_dom::VChild;
 ///
-/// #[derive(Clone, Properties)]
-/// struct List {
+/// #[derive(PartialEq, Properties)]
+/// struct Props {
 ///   children: ChildrenRenderer<ListItem>,
 /// }
+///
+/// struct List;
 /// impl Component for List {
 /// #   type Message = ();
-///   type Properties = Self;
+///   type Properties = Props;
 ///   // ...
-/// #   fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self { props }
-/// #   fn update(&mut self, _: Self::Message) -> ShouldRender { false }
-/// #   fn change(&mut self, _: Self::Properties) -> ShouldRender { false }
-/// #   fn view(&self) -> Html { unimplemented!() }
+/// #   fn create(ctx: &Link<Self>) -> Self { unimplemented!() }
+/// #   fn view(&self, ctx: &Link<Self>) -> Html { unimplemented!() }
 /// }
 ///
-/// #[derive(Clone)]
+/// #[derive(PartialEq, Clone)]
 /// struct ListItem;
 /// impl Component for ListItem {
 /// #   type Message = ();
 /// #   type Properties = ();
 ///   // ...
-/// #   fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self { Self }
-/// #   fn update(&mut self, _: Self::Message) -> ShouldRender { false }
-/// #   fn change(&mut self, _: Self::Properties) -> ShouldRender { false }
-/// #   fn view(&self) -> Html { unimplemented!() }
+/// #   fn create(_: &Link<Self>) -> Self { Self }
+/// #   fn view(&self, ctx: &Link<Self>) -> Html { unimplemented!() }
 /// }
 ///
 /// // Required for ChildrenRenderer
@@ -168,7 +160,9 @@ pub use yew_macro::html;
 /// }
 ///
 /// impl Into<Html> for ListItem {
-///   fn into(self) -> Html { self.view() }
+///   fn into(self) -> Html {
+///     html! { "List Item" }
+///   }
 /// }
 ///
 /// // You can use `List` with nested `ListItem` components.
@@ -222,7 +216,7 @@ pub use yew_macro::html_nested;
 /// # use yew::prelude::*;
 /// use std::borrow::Cow;
 ///
-/// #[derive(Clone, Properties)]
+/// #[derive(PartialEq, Properties)]
 /// struct Props {
 ///     #[prop_or_default]
 ///     id: usize,
@@ -234,10 +228,8 @@ pub use yew_macro::html_nested;
 /// #   type Message = ();
 ///     type Properties = Props;
 ///     // ...
-/// #   fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self { unimplemented!() }
-/// #   fn update(&mut self, _msg: Self::Message) -> ShouldRender { unimplemented!() }
-/// #   fn change(&mut self, _props: Self::Properties) -> ShouldRender { unimplemented!() }
-/// #   fn view(&self) -> Html { unimplemented!() }
+/// #   fn create(_: &Link<Self>) -> Self { unimplemented!() }
+/// #   fn view(&self, _: &Link<Self>) -> Html { unimplemented!() }
 /// }
 ///
 /// # fn foo() -> Html {
@@ -270,6 +262,7 @@ pub mod macros {
 
 pub mod app;
 pub mod callback;
+pub mod component;
 pub mod format;
 pub mod html;
 mod scheduler;
@@ -322,11 +315,11 @@ pub mod prelude {
     pub use crate::agent::{Bridge, Bridged, Dispatched, Threaded};
     pub use crate::app::App;
     pub use crate::callback::Callback;
-    pub use crate::events::*;
-    pub use crate::html::{
-        Children, ChildrenWithProps, Classes, Component, ComponentLink, Html, NodeRef, Properties,
-        ShouldRender,
+    pub use crate::component::{
+        Children, ChildrenWithProps, Component, ComponentLink, Context, Properties, ShouldRender,
     };
+    pub use crate::events::*;
+    pub use crate::html::{Classes, Html, NodeRef};
     pub use crate::macros::{classes, html, html_nested};
 
     /// Prelude module for creating worker.

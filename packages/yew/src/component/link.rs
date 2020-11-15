@@ -1,16 +1,13 @@
-//! Component scope module
+//! Component link module
 
-use super::{
-    lifecycle::{
-        ComponentLifecycleEvent, ComponentRunnable, ComponentState, CreateEvent, UpdateEvent,
-    },
-    Component,
+use super::lifecycle::{
+    ComponentLifecycleEvent, ComponentRunnable, ComponentState, CreateEvent, UpdateEvent,
 };
-use crate::callback::Callback;
-use crate::html::NodeRef;
+use super::Component;
 use crate::scheduler::{scheduler, Shared};
 use crate::utils::document;
 use crate::virtual_dom::{insert_node, VNode};
+use crate::{Callback, NodeRef};
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell};
 use std::fmt;
@@ -18,27 +15,27 @@ use std::ops::Deref;
 use std::rc::Rc;
 use web_sys::{Element, Node};
 
-/// Untyped scope used for accessing parent scope
+/// Untyped link used for accessing parent link
 #[derive(Debug, Clone)]
-pub struct AnyScope {
+pub struct AnyLink {
     pub(crate) type_id: TypeId,
-    pub(crate) parent: Option<Rc<AnyScope>>,
+    pub(crate) parent: Option<Rc<AnyLink>>,
     pub(crate) state: Rc<dyn Any>,
 }
 
-impl<COMP: Component> From<Scope<COMP>> for AnyScope {
-    fn from(scope: Scope<COMP>) -> Self {
-        AnyScope {
+impl<COMP: Component> From<ComponentLink<COMP>> for AnyLink {
+    fn from(link: ComponentLink<COMP>) -> Self {
+        AnyLink {
             type_id: TypeId::of::<COMP>(),
-            parent: scope.parent,
-            state: Rc::new(scope.state),
+            parent: link.parent,
+            state: Rc::new(link.state),
         }
     }
 }
 
-impl AnyScope {
-    /// Returns the parent scope
-    pub fn get_parent(&self) -> Option<&AnyScope> {
+impl AnyLink {
+    /// Returns the parent link
+    pub fn get_parent(&self) -> Option<&AnyLink> {
         self.parent.as_deref()
     }
 
@@ -47,9 +44,9 @@ impl AnyScope {
         &self.type_id
     }
 
-    /// Attempts to downcast into a typed scope
-    pub fn downcast<COMP: Component>(self) -> Scope<COMP> {
-        Scope {
+    /// Attempts to downcast into a typed link
+    pub fn downcast<COMP: Component>(self) -> ComponentLink<COMP> {
+        ComponentLink {
             parent: self.parent,
             state: self
                 .state
@@ -60,14 +57,14 @@ impl AnyScope {
     }
 }
 
-pub(crate) trait Scoped {
-    fn to_any(&self) -> AnyScope;
+pub(crate) trait LinkHandle {
+    fn to_any(&self) -> AnyLink;
     fn root_vnode(&self) -> Option<Ref<'_, VNode>>;
     fn destroy(&mut self);
 }
 
-impl<COMP: Component> Scoped for Scope<COMP> {
-    fn to_any(&self) -> AnyScope {
+impl<COMP: Component> LinkHandle for ComponentLink<COMP> {
+    fn to_any(&self) -> AnyLink {
         self.clone().into()
     }
 
@@ -88,31 +85,43 @@ impl<COMP: Component> Scoped for Scope<COMP> {
     }
 }
 
-/// A context which allows sending messages to a component.
-pub struct Scope<COMP: Component> {
-    parent: Option<Rc<AnyScope>>,
-    state: Shared<Option<ComponentState<COMP>>>,
+/// A link which allows sending messages to a component.
+pub struct ComponentLink<COMP: Component> {
+    pub(crate) parent: Option<Rc<AnyLink>>,
+    state: Rc<RefCell<Option<ComponentState<COMP>>>>,
 }
 
-impl<COMP: Component> fmt::Debug for Scope<COMP> {
+impl<COMP: Component> fmt::Debug for ComponentLink<COMP> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Scope<_>")
+        f.write_str("Link<_>")
     }
 }
 
-impl<COMP: Component> Clone for Scope<COMP> {
+impl<COMP: Component> Clone for ComponentLink<COMP> {
     fn clone(&self) -> Self {
-        Scope {
+        Self {
             parent: self.parent.clone(),
             state: self.state.clone(),
         }
     }
 }
 
-impl<COMP: Component> Scope<COMP> {
-    /// Returns the parent scope
-    pub fn get_parent(&self) -> Option<&AnyScope> {
+impl<COMP: Component> ComponentLink<COMP> {
+    /// Returns the parent link
+    pub fn get_parent(&self) -> Option<&AnyLink> {
         self.parent.as_deref()
+    }
+
+    // TODO: consider combining this with get_component
+
+    /// Returns the linked component if available
+    pub fn get_props(&self) -> Option<impl Deref<Target = COMP::Properties> + '_> {
+        self.state.try_borrow().ok().and_then(|state_ref| {
+            state_ref.as_ref()?;
+            Some(Ref::map(state_ref, |state| {
+                state.as_ref().unwrap().props.as_ref()
+            }))
+        })
     }
 
     /// Returns the linked component if available
@@ -125,10 +134,9 @@ impl<COMP: Component> Scope<COMP> {
         })
     }
 
-    pub(crate) fn new(parent: Option<AnyScope>) -> Self {
-        let parent = parent.map(Rc::new);
+    pub(crate) fn new(parent: Option<Rc<AnyLink>>) -> Self {
         let state = Rc::new(RefCell::new(None));
-        Scope { parent, state }
+        ComponentLink { parent, state }
     }
 
     /// Mounts a component with `props` to the specified `element` in the DOM.
@@ -137,8 +145,8 @@ impl<COMP: Component> Scope<COMP> {
         parent: Element,
         next_sibling: NodeRef,
         node_ref: NodeRef,
-        props: COMP::Properties,
-    ) -> Scope<COMP> {
+        props: Rc<COMP::Properties>,
+    ) -> ComponentLink<COMP> {
         let placeholder = {
             let placeholder: Node = document().create_text_node("").into();
             insert_node(&placeholder, &parent, next_sibling.get());
@@ -153,13 +161,18 @@ impl<COMP: Component> Scope<COMP> {
             placeholder,
             node_ref,
             props,
-            scope: self.clone(),
+            link: self.clone(),
         }));
 
         self
     }
 
-    pub(crate) fn reuse(&self, props: COMP::Properties, node_ref: NodeRef, next_sibling: NodeRef) {
+    pub(crate) fn reuse(
+        &self,
+        props: Rc<COMP::Properties>,
+        node_ref: NodeRef,
+        next_sibling: NodeRef,
+    ) {
         self.process(UpdateEvent::Properties(props, node_ref, next_sibling).into());
     }
 
@@ -226,10 +239,10 @@ impl<COMP: Component> Scope<COMP> {
         M: Into<COMP::Message>,
         F: Fn(IN) -> M + 'static,
     {
-        let scope = self.clone();
+        let link = self.clone();
         let closure = move |input| {
             let output = function(input);
-            scope.send_message(output);
+            link.send_message(output);
         };
         closure.into()
     }
@@ -245,10 +258,10 @@ impl<COMP: Component> Scope<COMP> {
         M: Into<COMP::Message>,
         F: FnOnce(IN) -> M + 'static,
     {
-        let scope = self.clone();
+        let link = self.clone();
         let closure = move |input| {
             let output = function(input);
-            scope.send_message(output);
+            link.send_message(output);
         };
         Callback::once(closure)
     }
@@ -273,10 +286,10 @@ impl<COMP: Component> Scope<COMP> {
         F: Fn(IN) -> OUT + 'static,
         OUT: SendAsMessage<COMP>,
     {
-        let scope = self.clone();
+        let link = self.clone();
         let closure = move |input| {
             let messages = function(input);
-            messages.send(&scope);
+            messages.send(&link);
         };
         closure.into()
     }
@@ -301,30 +314,30 @@ impl<COMP: Component> Scope<COMP> {
         F: FnOnce(IN) -> OUT + 'static,
         OUT: SendAsMessage<COMP>,
     {
-        let scope = self.clone();
+        let link = self.clone();
         let closure = move |input| {
             let messages = function(input);
-            messages.send(&scope);
+            messages.send(&link);
         };
         Callback::once(closure)
     }
 }
 
 /// Defines a message type that can be sent to a component.
-/// Used for the return value of closure given to [Scope::batch_callback](struct.Scope.html#method.batch_callback).
+/// Used for the return value of closure given to [Link::batch_callback](struct.Link.html#method.batch_callback).
 pub trait SendAsMessage<COMP: Component> {
-    /// Sends the message to the given component's scope.
-    /// See [Scope::batch_callback](struct.Scope.html#method.batch_callback).
-    fn send(self, scope: &Scope<COMP>);
+    /// Sends the message to the given component's link.
+    /// See [Link::batch_callback](struct.Link.html#method.batch_callback).
+    fn send(self, link: &ComponentLink<COMP>);
 }
 
 impl<COMP> SendAsMessage<COMP> for Option<COMP::Message>
 where
     COMP: Component,
 {
-    fn send(self, scope: &Scope<COMP>) {
+    fn send(self, link: &ComponentLink<COMP>) {
         if let Some(msg) = self {
-            scope.send_message(msg);
+            link.send_message(msg);
         }
     }
 }
@@ -333,7 +346,7 @@ impl<COMP> SendAsMessage<COMP> for Vec<COMP::Message>
 where
     COMP: Component,
 {
-    fn send(self, scope: &Scope<COMP>) {
-        scope.send_message_batch(self);
+    fn send(self, link: &ComponentLink<COMP>) {
+        link.send_message_batch(self);
     }
 }

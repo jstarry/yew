@@ -3,7 +3,8 @@
 use super::{
     Attributes, Key, Listener, Listeners, Patch, PositionalAttr, Transformer, VDiff, VList, VNode,
 };
-use crate::html::{AnyScope, NodeRef};
+use crate::component::AnyLink;
+use crate::html::NodeRef;
 use crate::utils::document;
 use gloo::events::EventListener;
 use log::warn;
@@ -407,7 +408,7 @@ impl VDiff for VTag {
     /// to compute what to patch in the actual DOM nodes.
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
+        parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -446,7 +447,7 @@ impl VDiff for VTag {
         let element = self.reference.as_ref().expect("Reference should be set");
         if !self.children.is_empty() {
             self.children.apply(
-                parent_scope,
+                parent_context,
                 element,
                 NodeRef::default(),
                 ancestor_tag.map(|a| a.children.into()),
@@ -509,11 +510,12 @@ mod tests {
     #[cfg(feature = "wasm_test")]
     wasm_bindgen_test_configure!(run_in_browser);
 
-    fn test_scope() -> AnyScope {
-        AnyScope {
+    fn test_context() -> AnyLink {
+        AnyLink {
             type_id: TypeId::of::<()>(),
             parent: None,
             state: Rc::new(()),
+            props: Rc::new(()),
         }
     }
 
@@ -636,7 +638,7 @@ mod tests {
     fn supports_svg() {
         let document = web_sys::window().unwrap().document().unwrap();
 
-        let scope = test_scope();
+        let context = test_context();
         let div_el = document.create_element("div").unwrap();
         let namespace = SVG_NAMESPACE;
         let namespace = Some(namespace);
@@ -647,17 +649,17 @@ mod tests {
         let mut svg_node = html! { <svg>{path_node}</svg> };
 
         let svg_tag = assert_vtag(&mut svg_node);
-        svg_tag.apply(&scope, &div_el, NodeRef::default(), None);
+        svg_tag.apply(&context, &div_el, NodeRef::default(), None);
         assert_namespace(svg_tag, SVG_NAMESPACE);
         let path_tag = assert_vtag(svg_tag.children.get_mut(0).unwrap());
         assert_namespace(path_tag, SVG_NAMESPACE);
 
         let g_tag = assert_vtag(&mut g_node);
-        g_tag.apply(&scope, &div_el, NodeRef::default(), None);
+        g_tag.apply(&context, &div_el, NodeRef::default(), None);
         assert_namespace(g_tag, HTML_NAMESPACE);
         g_tag.reference = None;
 
-        g_tag.apply(&scope, &svg_el, NodeRef::default(), None);
+        g_tag.apply(&context, &svg_el, NodeRef::default(), None);
         assert_namespace(g_tag, SVG_NAMESPACE);
     }
 
@@ -769,13 +771,13 @@ mod tests {
 
     #[test]
     fn it_does_not_set_missing_class_name() {
-        let scope = test_scope();
+        let context = test_context();
         let parent = document().create_element("div").unwrap();
 
         document().body().unwrap().append_child(&parent).unwrap();
 
         let mut elem = html! { <div></div> };
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let vtag = assert_vtag(&mut elem);
         // test if the className has not been set
         assert!(!vtag.reference.as_ref().unwrap().has_attribute("class"));
@@ -783,13 +785,13 @@ mod tests {
 
     #[test]
     fn it_sets_class_name() {
-        let scope = test_scope();
+        let context = test_context();
         let parent = document().create_element("div").unwrap();
 
         document().body().unwrap().append_child(&parent).unwrap();
 
         let mut elem = html! { <div class="ferris the crab"></div> };
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let vtag = assert_vtag(&mut elem);
         // test if the className has been set
         assert!(vtag.reference.as_ref().unwrap().has_attribute("class"));
@@ -797,7 +799,7 @@ mod tests {
 
     #[test]
     fn controlled_input_synced() {
-        let scope = test_scope();
+        let context = test_context();
         let parent = document().create_element("div").unwrap();
 
         document().body().unwrap().append_child(&parent).unwrap();
@@ -806,7 +808,7 @@ mod tests {
 
         // Initial state
         let mut elem = html! { <input value=expected /> };
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let vtag = if let VNode::VTag(vtag) = elem {
             vtag
         } else {
@@ -824,7 +826,7 @@ mod tests {
 
         // Sync happens here
         vtag.apply(
-            &scope,
+            &context,
             &parent,
             NodeRef::default(),
             Some(VNode::VTag(ancestor)),
@@ -842,14 +844,14 @@ mod tests {
 
     #[test]
     fn uncontrolled_input_unsynced() {
-        let scope = test_scope();
+        let context = test_context();
         let parent = document().create_element("div").unwrap();
 
         document().body().unwrap().append_child(&parent).unwrap();
 
         // Initial state
         let mut elem = html! { <input /> };
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let vtag = if let VNode::VTag(vtag) = elem {
             vtag
         } else {
@@ -867,7 +869,7 @@ mod tests {
 
         // Value should not be refreshed
         vtag.apply(
-            &scope,
+            &context,
             &parent,
             NodeRef::default(),
             Some(VNode::VTag(ancestor)),
@@ -885,7 +887,7 @@ mod tests {
 
     #[test]
     fn dynamic_tags_work() {
-        let scope = test_scope();
+        let context = test_context();
         let parent = document().create_element("div").unwrap();
 
         document().body().unwrap().append_child(&parent).unwrap();
@@ -896,7 +898,7 @@ mod tests {
             builder
         }/> };
 
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let vtag = assert_vtag(&mut elem);
         // make sure the new tag name is used internally
         assert_eq!(vtag.tag(), "a");
@@ -938,7 +940,7 @@ mod tests {
 
     #[test]
     fn reset_node_ref() {
-        let scope = test_scope();
+        let context = test_context();
         let parent = document().create_element("div").unwrap();
 
         document().body().unwrap().append_child(&parent).unwrap();
@@ -946,7 +948,7 @@ mod tests {
         let node_ref = NodeRef::default();
         let mut elem: VNode = html! { <div ref=node_ref.clone()></div> };
         assert_vtag(&mut elem);
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let parent_node = parent.deref();
         assert_eq!(node_ref.get(), parent_node.first_child());
         elem.detach(&parent);

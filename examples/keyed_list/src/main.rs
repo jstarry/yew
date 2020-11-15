@@ -1,5 +1,8 @@
+#![allow(deprecated)]
+
 use instant::Instant;
 use person::PersonType;
+use yew::component::{Component, Context};
 use yew::prelude::*;
 use yew::web_sys::HtmlElement;
 use yewtil::NeqAssign;
@@ -24,7 +27,6 @@ pub enum Msg {
 }
 
 pub struct Model {
-    link: ComponentLink<Self>,
     persons: Vec<PersonType>,
     last_id: usize,
     keyed: bool,
@@ -32,13 +34,12 @@ pub struct Model {
     delta_ref: NodeRef,
 }
 
-impl Component for Model {
+impl LegacyComponent for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            link,
             persons: Vec::with_capacity(200),
             last_id: 0,
             keyed: true,
@@ -47,7 +48,7 @@ impl Component for Model {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::CreatePersons(n) => {
                 for _ in 0..n {
@@ -137,12 +138,8 @@ impl Component for Model {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
-        self.link.send_message(Msg::Rendered(Instant::now()));
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        ctx.send_message(Msg::Rendered(Instant::now()));
 
         html! {
             <div class="container">
@@ -150,7 +147,7 @@ impl Component for Model {
                     <p class="h2" ref=self.delta_ref.clone()/>
                     <hr />
                 </div>
-                { self.action_view() }
+                { self.action_view(ctx) }
                 { self.info_view() }
             </div>
         }
@@ -158,10 +155,10 @@ impl Component for Model {
 }
 
 impl Model {
-    fn action_view(&self) -> Html {
+    fn action_view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <>
-                { self.button_view() }
+                { self.button_view(ctx) }
                 <div class="row">
                     <div class="col">
                         <p class="h5">
@@ -170,86 +167,87 @@ impl Model {
                         </p>
                         <input name="ratio" type="range" class="form-control-range" min="0.0" max="1.0" step="any"
                             value=self.build_component_ratio
-                            oninput=self.link.callback(|e: InputData| Msg::ChangeRatio(e.value))
+                            oninput=ctx.callback(|e: InputData| Msg::ChangeRatio(e.value))
                         />
                     </div>
                 </div>
             </>
         }
     }
-    fn button_view(&self) -> Html {
+
+    fn button_view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <>
                 <div class="row">
                     <div class="col">
-                        <button class="btn_size alert alert-danger" onclick=self.link.callback(|_| Msg::DeleteEverybody)>
+                        <button class="btn_size alert alert-danger" onclick=ctx.callback(|_| Msg::DeleteEverybody)>
                             { "Delete everybody" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-success" onclick=self.link.callback(|_| Msg::CreatePersons(1))>
+                        <button class="btn_size alert alert-success" onclick=ctx.callback(|_| Msg::CreatePersons(1))>
                             { "Create 1" }
                     </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-success" onclick=self.link.callback(|_| Msg::CreatePersons(5))>
+                        <button class="btn_size alert alert-success" onclick=ctx.callback(|_| Msg::CreatePersons(5))>
                             { "Create 5" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-success" onclick=self.link.callback(|_| Msg::CreatePersons(100))>
+                        <button class="btn_size alert alert-success" onclick=ctx.callback(|_| Msg::CreatePersons(100))>
                             { "Create 100" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-success" onclick=self.link.callback(|_| Msg::CreatePersons(500))>
+                        <button class="btn_size alert alert-success" onclick=ctx.callback(|_| Msg::CreatePersons(500))>
                             { "Create 500" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-success" onclick=self.link.callback(|_| Msg::CreatePersonsPrepend(1))>
+                        <button class="btn_size alert alert-success" onclick=ctx.callback(|_| Msg::CreatePersonsPrepend(1))>
                             { "Prepend 1" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-success" onclick=self.link.callback(|_| Msg::CreatePersonsPrepend(5))>
+                        <button class="btn_size alert alert-success" onclick=ctx.callback(|_| Msg::CreatePersonsPrepend(5))>
                             { "Prepend 5" }
                         </button>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col">
-                        <button class="btn_size alert alert-warning" onclick=self.link.callback(|_| Msg::ToggleKeyed)>
+                        <button class="btn_size alert alert-warning" onclick=ctx.callback(|_| Msg::ToggleKeyed)>
                             { if self.keyed { "Disable keys" } else { "Enable keys" } }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-info" onclick=self.link.callback(|_| Msg::SwapRandom)>
+                        <button class="btn_size alert alert-info" onclick=ctx.callback(|_| Msg::SwapRandom)>
                             { "Swap random" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-info" onclick=self.link.callback(|_| Msg::ReverseList)>
+                        <button class="btn_size alert alert-info" onclick=ctx.callback(|_| Msg::ReverseList)>
                             { "Reverse list" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-info" onclick=self.link.callback(|_| Msg::SortById)>
+                        <button class="btn_size alert alert-info" onclick=ctx.callback(|_| Msg::SortById)>
                             { "Sort by id" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-info" onclick=self.link.callback(|_| Msg::SortByName)>
+                        <button class="btn_size alert alert-info" onclick=ctx.callback(|_| Msg::SortByName)>
                             { "Sort by name" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-info" onclick=self.link.callback(|_| Msg::SortByAge)>
+                        <button class="btn_size alert alert-info" onclick=ctx.callback(|_| Msg::SortByAge)>
                             { "Sort by age" }
                         </button>
                     </div>
                     <div class="col">
-                        <button class="btn_size alert alert-info" onclick=self.link.callback(|_| Msg::SortByAddress)>
+                        <button class="btn_size alert alert-info" onclick=ctx.callback(|_| Msg::SortByAddress)>
                             { "Sort by address" }
                         </button>
                     </div>
@@ -282,5 +280,5 @@ impl Model {
 
 fn main() {
     wasm_logger::init(wasm_logger::Config::new(log::Level::Trace));
-    yew::start_app::<Model>();
+    yew::start_app::<Legacy<Model>>();
 }

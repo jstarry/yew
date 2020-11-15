@@ -1,9 +1,9 @@
 //! This module contains useful utilities to get information about the current document.
 
+use crate::component::ChildrenRenderer;
 use anyhow::{anyhow, Error};
 use std::marker::PhantomData;
 use web_sys::{Document, Window};
-use yew::html::ChildrenRenderer;
 
 /// Returns the current window. This function will panic if there is no available window.
 pub fn window() -> Window {

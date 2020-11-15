@@ -1,6 +1,5 @@
 //! Component children module
 
-use crate::html::Html;
 use crate::virtual_dom::{VChild, VNode};
 use std::fmt;
 
@@ -11,8 +10,8 @@ use std::fmt;
 ///
 /// In this example, the `Wrapper` component is used to wrap other elements.
 /// ```
-///# use yew::{Children, Html, Properties, Component, ComponentLink, html};
-///# #[derive(Clone, Properties)]
+///# use yew::{Children, Link, Html, Properties, Component, html};
+///# #[derive(PartialEq, Properties)]
 ///# struct WrapperProps {
 ///#     children: Children,
 ///# }
@@ -20,11 +19,9 @@ use std::fmt;
 ///# impl Component for Wrapper{
 ///#     type Message = ();
 ///#     type Properties = WrapperProps;
-///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
-///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
 ///#     // This is not a valid implementation.  This is done for space convenience.
-///#     fn view(&self) -> Html {
+///#     fn view(&self, _ctx: &Link<Self>) -> Html {
 /// html! {
 ///     <Wrapper>
 ///         <h4>{ "Hi" }</h4>
@@ -40,30 +37,28 @@ use std::fmt;
 /// The Wrapper component must define a `children` property in order to wrap other elements. The
 /// children property can be used to render the wrapped elements.
 /// ```
-///# use yew::{Children, Html, Properties, Component, ComponentLink, html};
-/// #[derive(Clone, Properties)]
+///# use yew::{Children, Link, Html, Properties, Component, html};
+/// #[derive(PartialEq, Properties)]
 /// struct WrapperProps {
 ///     children: Children,
 /// }
 ///
-///# struct Wrapper {props: WrapperProps};
+///# struct Wrapper;
 /// impl Component for Wrapper {
 ///     // ...
 ///#     type Message = ();
 ///#     type Properties = WrapperProps;
-///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
-///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///     fn view(&self) -> Html {
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///     fn view(&self, ctx: &Link<Self>) -> Html {
 ///         html! {
 ///             <div id="container">
-///                 { self.props.children.clone() }
+///                 { ctx.props.children.clone() }
 ///             </div>
 ///         }
 ///     }
 /// }
 /// ```
-pub type Children = ChildrenRenderer<Html>;
+pub type Children = ChildrenRenderer<VNode>;
 
 /// A type used for accepting children elements in Component::Properties and accessing their props.
 ///
@@ -72,9 +67,9 @@ pub type Children = ChildrenRenderer<Html>;
 ///
 /// In this example, the `List` component can wrap `ListItem` components.
 /// ```
-///# use yew::{html, Component, Html, ComponentLink, ChildrenWithProps, Properties};
+///# use yew::{html, Component, Link, Html, ChildrenWithProps, Properties};
 ///#
-///# #[derive(Clone, Properties)]
+///# #[derive(PartialEq, Properties)]
 ///# struct ListProps {
 ///#     children: ChildrenWithProps<ListItem>,
 ///# }
@@ -82,12 +77,10 @@ pub type Children = ChildrenRenderer<Html>;
 ///# impl Component for List {
 ///#     type Message = ();
 ///#     type Properties = ListProps;
-///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
-///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///#     fn view(&self, ctx: &Link<Self>) -> Html {unimplemented!()}
 ///# }
-///# #[derive(Clone, Properties)]
+///# #[derive(Clone, PartialEq, Properties)]
 ///# struct ListItemProps {
 ///#     value: String
 ///# }
@@ -95,10 +88,8 @@ pub type Children = ChildrenRenderer<Html>;
 ///# impl Component for ListItem {
 ///#     type Message = ();
 ///#     type Properties = ListItemProps;
-///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
-///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///#     fn view(&self, ctx: &Link<Self>) -> Html {unimplemented!()}
 ///# }
 ///# fn view() -> Html {
 /// html!{
@@ -116,9 +107,9 @@ pub type Children = ChildrenRenderer<Html>;
 /// The `List` component must define a `children` property in order to wrap the list items. The
 /// `children` property can be used to filter, mutate, and render the items.
 /// ```
-///# use yew::{html, Component, Html, ChildrenWithProps, ComponentLink, Properties};
+///# use yew::{html, Component, Link, Html, ChildrenWithProps, Properties};
 ///#
-/// #[derive(Clone, Properties)]
+/// #[derive(PartialEq, Properties)]
 /// struct ListProps {
 ///     children: ChildrenWithProps<ListItem>,
 /// }
@@ -127,21 +118,19 @@ pub type Children = ChildrenRenderer<Html>;
 /// impl Component for List {
 ///#     type Message = ();
 ///#     type Properties = ListProps;
-///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
-///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
 ///     // ...
-///     fn view(&self) -> Html {
+///     fn view(&self, ctx: &Link<Self>) -> Html {
 ///         html!{{
-///             for self.props.children.iter().map(|mut item| {
-///                 item.props.value = format!("item-{}", item.props.value);
+///             for ctx.props.children.iter().map(|mut item| {
+///                 item.props.borrow_mut().value = format!("item-{}", item.props.borrow().value);
 ///                 item
 ///             })
 ///         }}
 ///     }
 /// }
 ///#
-///# #[derive(Clone, Properties)]
+///# #[derive(Clone, PartialEq, Properties)]
 ///# struct ListItemProps {
 ///#     #[prop_or_default]
 ///#     value: String
@@ -151,10 +140,8 @@ pub type Children = ChildrenRenderer<Html>;
 ///# impl Component for ListItem {
 ///#     type Message = ();
 ///#     type Properties = ListItemProps;
-///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
-///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-///#     fn view(&self) -> Html {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///#     fn view(&self, ctx: &Link<Self>) -> Html {unimplemented!()}
 ///# }
 /// ```
 pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;

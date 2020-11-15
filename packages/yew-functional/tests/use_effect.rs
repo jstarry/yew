@@ -15,7 +15,7 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 fn use_effect_destroys_on_component_drop() {
     struct UseEffectFunction {}
     struct UseEffectWrapper {}
-    #[derive(Properties, Clone)]
+    #[derive(Properties)]
     struct WrapperProps {
         destroy_called: Rc<dyn Fn()>,
     }
@@ -24,7 +24,7 @@ fn use_effect_destroys_on_component_drop() {
             false
         }
     }
-    #[derive(Properties, Clone)]
+    #[derive(Properties)]
     struct FunctionProps {
         effect_called: Rc<dyn Fn()>,
         destroy_called: Rc<dyn Fn()>,

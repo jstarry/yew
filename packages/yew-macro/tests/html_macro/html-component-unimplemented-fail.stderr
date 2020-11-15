@@ -2,12 +2,17 @@ error[E0599]: no function or associated item named `new` found for struct `yew::
  --> $DIR/html-component-unimplemented-fail.rs:8:14
   |
 5 | struct Unimplemented;
+<<<<<<< HEAD:packages/yew-macro/tests/html_macro/html-component-unimplemented-fail.stderr
   | --------------------- doesn't satisfy `Unimplemented: yew::html::component::Component`
+=======
+  | --------------------- doesn't satisfy `Unimplemented: yew::component::Component`
+>>>>>>> consistent-agent-comp-api:yew-macro/tests/html_macro/html-component-unimplemented-fail.stderr
 ...
 8 |     html! { <Unimplemented /> };
   |              ^^^^^^^^^^^^^ function or associated item not found in `yew::virtual_dom::vcomp::VChild<Unimplemented>`
   |
   = note: the method `new` exists but the following trait bounds were not satisfied:
+<<<<<<< HEAD:packages/yew-macro/tests/html_macro/html-component-unimplemented-fail.stderr
           `Unimplemented: yew::html::component::Component`
 
 error[E0277]: the trait bound `Unimplemented: yew::html::component::Component` is not satisfied
@@ -15,3 +20,12 @@ error[E0277]: the trait bound `Unimplemented: yew::html::component::Component` i
   |
 8 |     html! { <Unimplemented /> };
   |              ^^^^^^^^^^^^^ the trait `yew::html::component::Component` is not implemented for `Unimplemented`
+=======
+          `Unimplemented: yew::component::Component`
+
+error[E0277]: the trait bound `Unimplemented: yew::component::Component` is not satisfied
+ --> $DIR/html-component-fail-unimplemented.rs:8:14
+  |
+8 |     html! { <Unimplemented /> };
+  |              ^^^^^^^^^^^^^ the trait `yew::component::Component` is not implemented for `Unimplemented`
+>>>>>>> consistent-agent-comp-api:yew-macro/tests/html_macro/html-component-unimplemented-fail.stderr

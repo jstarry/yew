@@ -187,27 +187,25 @@ impl FetchService {
     ///
     /// ```
     ///# use anyhow::Error;
-    ///# use yew::{Component, ComponentLink, Html};
+    ///# use yew::{Component, Link, Html};
     ///# use yew_services::FetchService;
     ///# use yew_services::fetch::{Response, Request};
     ///# struct Comp;
     ///# impl Component for Comp {
     ///#     type Message = Msg;type Properties = ();
-    ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
-    ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-    ///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-    ///#     fn view(&self) -> Html {unimplemented!()}
+    ///#     fn create(_: &Link<Self>) -> Self {unimplemented!()}
+    ///#     fn view(&self, _: &Link<Self>) -> Html {unimplemented!()}
     ///# }
     ///# enum Msg {
     ///#     Noop,
     ///#     Error
     ///# }
     ///# fn dont_execute() {
-    ///# let link: ComponentLink<Comp> = unimplemented!();
+    ///# let ctx: Link<Comp> = unimplemented!();
     ///# let post_request: Request<Result<String, Error>> = unimplemented!();
     /// let task = FetchService::fetch(
     ///     post_request,
-    ///     link.callback(|response: Response<Result<String, Error>>| {
+    ///     ctx.callback(|response: Response<Result<String, Error>>| {
     ///         if response.status().is_success() {
     ///             Msg::Noop
     ///         } else {
@@ -223,20 +221,23 @@ impl FetchService {
     /// data type, then you will get an error message.
     ///
     /// ```
+    ///# use yew::format::{Json, Nothing, Format};
+    ///# use yew::services::FetchService;
+    ///# use http::Request;
+    ///# use yew::services::fetch::Response;
+    ///# use serde_derive::Deserialize;
     ///# use anyhow::Error;
     ///# use http::Request;
     ///# use serde::Deserialize;
-    ///# use yew::{Component, ComponentLink, Html};
+    ///# use yew::{Component, Link, Html};
     ///# use yew::format::{Json, Nothing, Format};
     ///# use yew_services::fetch::Response;
     ///# use yew_services::FetchService;
     ///# struct Comp;
     ///# impl Component for Comp {
     ///#     type Message = Msg;type Properties = ();
-    ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
-    ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
-    ///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-    ///#     fn view(&self) -> Html {unimplemented!()}
+    ///#     fn create(_: &Link<Self>) -> Self {unimplemented!()}
+    ///#     fn view(&self, _: &Link<Self>) -> Html {unimplemented!()}
     ///# }
     ///# enum Msg {
     ///#     FetchResourceComplete(Data),
@@ -248,9 +249,9 @@ impl FetchService {
     /// }
     ///
     ///# fn dont_execute() {
-    ///# let link: ComponentLink<Comp> = unimplemented!();
+    ///# let ctx: Link<Comp> = unimplemented!();
     /// let get_request = Request::get("/thing").body(Nothing).unwrap();
-    /// let callback = link.callback(|response: Response<Json<Result<Data, Error>>>| {
+    /// let callback = ctx.callback(|response: Response<Json<Result<Data, Error>>>| {
     ///     if let (meta, Json(Ok(body))) = response.into_parts() {
     ///         if meta.status.is_success() {
     ///             return Msg::FetchResourceComplete(body);
@@ -277,24 +278,26 @@ impl FetchService {
     /// `fetch` with provided `FetchOptions` object.
     /// Use it if you need to send cookies with a request:
     /// ```
+    ///# use yew::format::Nothing;
+    ///# use yew::services::fetch::{self, FetchOptions, Credentials};
+    ///# use yew::services::FetchService;
+    ///# use http::Response;
     ///# use anyhow::Error;
     ///# use http::Response;
     ///# use yew::format::Nothing;
-    ///# use yew::{Html, Component, ComponentLink};
+    ///# use yew::{Html, Component, Link};
     ///# use yew_services::fetch::{self, FetchOptions, FetchService, Credentials};
     ///# struct Comp;
     ///# impl Component for Comp {
     ///#     type Message = Msg;
     ///#     type Properties = ();
-    ///#     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {unimplemented!()}
-    ///#     fn update(&mut self, msg: Self::Message) -> bool {unimplemented!()}
-    ///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
-    ///#     fn view(&self) -> Html {unimplemented!()}
+    ///#     fn create(_: &Link<Self>) -> Self {unimplemented!()}
+    ///#     fn view(&self, _: &Link<Self>) -> Html {unimplemented!()}
     ///# }
     ///# pub enum Msg {}
     ///# fn dont_execute() {
-    ///# let link: ComponentLink<Comp> = unimplemented!();
-    ///# let callback = link.callback(|response: Response<Result<String, Error>>|  -> Msg { unimplemented!() });
+    ///# let ctx: Link<Comp> = unimplemented!();
+    ///# let callback = ctx.callback(|response: Response<Result<String, Error>>|  -> Msg { unimplemented!() });
     /// let request = fetch::Request::get("/path/")
     ///     .body(Nothing)
     ///     .unwrap();

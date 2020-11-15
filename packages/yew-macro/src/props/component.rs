@@ -107,6 +107,7 @@ impl ComponentProps {
             Self::With(with_props) => {
                 let expr = &with_props.expr;
                 quote_spanned! {props_ty.span()=>
+                    #[allow(deprecated)]
                     let _: #props_ty = #expr;
                 }
             }
@@ -115,6 +116,7 @@ impl ComponentProps {
         quote_spanned! {props_ty.span()=>
             #[allow(clippy::no_effect)]
             if false {
+                #[allow(deprecated)]
                 let _ = |__yew_props: #props_ty| {
                     #check_children
                     #check_props
@@ -149,7 +151,7 @@ impl ComponentProps {
                 };
 
                 quote_spanned! {props_ty.span()=>
-                    <#props_ty as ::yew::html::Properties>::builder()
+                    <#props_ty as ::yew::component::Properties>::builder()
                         #(#set_props)*
                         #set_children
                         .build()

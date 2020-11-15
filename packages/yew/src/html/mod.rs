@@ -1,11 +1,9 @@
 //! The main html module which defines components, listeners, and class helpers.
 
 mod classes;
-mod component;
 mod listener;
 
 pub use classes::*;
-pub use component::*;
 pub use listener::*;
 
 use crate::virtual_dom::VNode;

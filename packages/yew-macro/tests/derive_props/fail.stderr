@@ -24,10 +24,14 @@ help: consider importing one of these items
    |
 
 error[E0277]: the trait bound `t1::Value: std::default::Default` is not satisfied
- --> $DIR/fail.rs:9:21
+ --> $DIR/fail.rs:9:25
   |
-9 |     #[derive(Clone, Properties)]
+9 |     #[derive(PartialEq, Properties)]
+<<<<<<< HEAD:packages/yew-macro/tests/derive_props/fail.stderr
   |                     ^^^^^^^^^^ the trait `std::default::Default` is not implemented for `t1::Value`
+=======
+  |                         ^^^^^^^^^^ the trait `std::default::Default` is not implemented for `t1::Value`
+>>>>>>> consistent-agent-comp-api:yew-macro/tests/derive_props/fail.stderr
   |
   = note: required by `std::default::Default::default`
   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -35,8 +39,12 @@ error[E0277]: the trait bound `t1::Value: std::default::Default` is not satisfie
 error[E0599]: no method named `build` found for struct `t3::PropsBuilder<t3::PropsBuilderStep_missing_required_prop_value>` in the current scope
   --> $DIR/fail.rs:35:26
    |
-29 |     #[derive(Clone, Properties)]
+29 |     #[derive(PartialEq, Properties)]
+<<<<<<< HEAD:packages/yew-macro/tests/derive_props/fail.stderr
    |                     ---------- method `build` not found for this
+=======
+   |                         ---------- method `build` not found for this
+>>>>>>> consistent-agent-comp-api:yew-macro/tests/derive_props/fail.stderr
 ...
 35 |         Props::builder().build();
    |                          ^^^^^ method not found in `t3::PropsBuilder<t3::PropsBuilderStep_missing_required_prop_value>`
@@ -48,8 +56,12 @@ error[E0599]: no method named `build` found for struct `t3::PropsBuilder<t3::Pro
 error[E0599]: no method named `b` found for struct `t4::PropsBuilder<t4::PropsBuilderStep_missing_required_prop_a>` in the current scope
   --> $DIR/fail.rs:48:26
    |
-41 |     #[derive(Clone, Properties)]
+41 |     #[derive(PartialEq, Properties)]
+<<<<<<< HEAD:packages/yew-macro/tests/derive_props/fail.stderr
    |                     ---------- method `b` not found for this
+=======
+   |                         ---------- method `b` not found for this
+>>>>>>> consistent-agent-comp-api:yew-macro/tests/derive_props/fail.stderr
 ...
 48 |         Props::builder().b(1).a(2).build();
    |                          ^ help: there is an associated function with a similar name: `a`
