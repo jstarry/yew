@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use yew::html::ChildrenRenderer;
+use yew::component::ChildrenRenderer;
 use yew::prelude::*;
 
 #[derive(Clone, Properties, PartialEq)]
@@ -14,21 +14,15 @@ impl Component for Child {
     type Message = ();
     type Properties = ChildProperties;
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Context<Self>) -> Self {
         unimplemented!()
     }
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
-        unimplemented!()
-    }
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
-        unimplemented!()
-    }
-    fn view(&self) -> Html {
+    fn view(&self, _: &Context<Self>) -> Html {
         unimplemented!()
     }
 }
 
-#[derive(Clone, Properties)]
+#[derive(PartialEq, Properties)]
 pub struct ChildContainerProperties {
     pub children: ChildrenWithProps<Child>,
 }
@@ -38,16 +32,10 @@ impl Component for ChildContainer {
     type Message = ();
     type Properties = ChildContainerProperties;
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Context<Self>) -> Self {
         unimplemented!()
     }
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
-        unimplemented!()
-    }
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
-        unimplemented!()
-    }
-    fn view(&self) -> Html {
+    fn view(&self, _: &Context<Self>) -> Html {
         unimplemented!()
     }
 }
@@ -60,16 +48,10 @@ impl Component for Generic<String> {
     type Message = ();
     type Properties = ();
 
-    fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_: &Context<Self>) -> Self {
         unimplemented!()
     }
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
-        unimplemented!()
-    }
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
-        unimplemented!()
-    }
-    fn view(&self) -> Html {
+    fn view(&self, _: &Context<Self>) -> Html {
         unimplemented!()
     }
 }

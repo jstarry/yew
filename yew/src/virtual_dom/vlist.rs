@@ -1,6 +1,7 @@
 //! This module contains fragments implementation.
 use super::{Key, VDiff, VNode, VText};
-use crate::html::{AnyScope, NodeRef};
+use crate::component::AnyLink;
+use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
@@ -77,7 +78,7 @@ impl VDiff for VList {
 
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
+        parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -214,7 +215,7 @@ impl VDiff for VList {
                 // returned `node` reference so that the previous left has an up-to-date `next_sibling`.
                 // This is important for rendering a `VComp` because each `VComp` keeps track of its
                 // `next_sibling` to properly render its children.
-                let node = left.apply(parent_scope, parent, new_next_sibling.clone(), ancestor);
+                let node = left.apply(parent_context, parent, new_next_sibling.clone(), ancestor);
                 last_next_sibling.link(node.clone());
                 last_next_sibling = new_next_sibling;
                 node
@@ -317,10 +318,11 @@ mod layout_tests {
 mod layout_tests_keys {
     extern crate self as yew;
 
+    use crate::component::{Component, ComponentLink, Properties, ShouldRender};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::virtual_dom::VNode;
-    use crate::{Children, Component, ComponentLink, Html, Properties, ShouldRender};
+    use crate::{Children, Html};
     use web_sys::Node;
 
     #[cfg(feature = "wasm_test")]
@@ -330,11 +332,10 @@ mod layout_tests_keys {
     wasm_bindgen_test_configure!(run_in_browser);
 
     struct Comp {
-        id: usize,
         panic_if_changes: bool,
     }
 
-    #[derive(Properties, Clone)]
+    #[derive(Properties, PartialEq)]
     struct CountingCompProps {
         id: usize,
         #[prop_or(false)]
@@ -345,62 +346,47 @@ mod layout_tests_keys {
         type Message = ();
         type Properties = CountingCompProps;
 
-        fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+        fn create(ctx: &ComponentLink<Self>) -> Self {
             Comp {
-                id: props.id,
-                panic_if_changes: props.can_change,
+                panic_if_changes: ctx.props.can_change,
             }
         }
 
-        fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        #[allow(unused)]
+        fn changed(
+            &mut self,
+            ctx: &ComponentLink<Self>,
+            new_props: &Self::Properties,
+        ) -> ShouldRender {
             #[cfg(feature = "wasm_test")]
-            wasm_bindgen_test::console_log!("Comp changed: {} -> {}", self.id, props.id);
-            let changed = self.id != props.id;
-            if self.panic_if_changes && changed {
-                panic!(
-                    "VComp changed but should not have: {} -> {}.",
-                    self.id, props.id
-                );
+            wasm_bindgen_test::console_log!("Comp changed: {} -> {}", ctx.props.id, new_props.id);
+            if self.panic_if_changes {
+                panic!("VComp changed but should not have");
             }
-            self.id = props.id;
-            changed
+            true
         }
 
-        fn update(&mut self, _: Self::Message) -> ShouldRender {
-            unimplemented!();
-        }
-
-        fn view(&self) -> Html {
-            html! { <p>{ self.id }</p> }
+        fn view(&self, ctx: &ComponentLink<Self>) -> Html {
+            html! { <p>{ ctx.props.id }</p> }
         }
     }
 
-    #[derive(Clone, Properties)]
+    #[derive(PartialEq, Properties)]
     pub struct ListProps {
         pub children: Children,
     }
 
-    pub struct List(ListProps);
-
+    pub struct List;
     impl Component for List {
         type Message = ();
         type Properties = ListProps;
 
-        fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
-            Self(props)
+        fn create(_ctx: &ComponentLink<Self>) -> Self {
+            Self
         }
 
-        fn update(&mut self, _: Self::Message) -> ShouldRender {
-            unimplemented!();
-        }
-
-        fn change(&mut self, mut props: Self::Properties) -> ShouldRender {
-            std::mem::swap(&mut self.0, &mut props);
-            self.0.children != props.children
-        }
-
-        fn view(&self) -> Html {
-            html! { <>{ for self.0.children.iter() }</> }
+        fn view(&self, ctx: &ComponentLink<Self>) -> Html {
+            html! { <>{ for ctx.props.children.iter() }</> }
         }
     }
 

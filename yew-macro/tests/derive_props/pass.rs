@@ -5,8 +5,8 @@ use yew::prelude::*;
 mod t1 {
     use super::*;
 
-    #[derive(Clone, Properties)]
-    pub struct Props<T: Clone + Default> {
+    #[derive(PartialEq, Properties)]
+    pub struct Props<T: PartialEq + Default> {
         #[prop_or_default]
         value: T,
     }
@@ -20,10 +20,10 @@ mod t1 {
 mod t2 {
     use super::*;
 
-    #[derive(Clone)]
+    #[derive(PartialEq)]
     struct Value;
-    #[derive(Clone, Properties)]
-    pub struct Props<T: Clone> {
+    #[derive(PartialEq, Properties)]
+    pub struct Props<T: PartialEq> {
         value: T,
     }
 
@@ -35,7 +35,7 @@ mod t2 {
 mod t3 {
     use super::*;
 
-    #[derive(Clone, Properties)]
+    #[derive(PartialEq, Properties)]
     pub struct Props {
         b: i32,
         #[prop_or_default]
@@ -51,10 +51,10 @@ mod t3 {
 mod t4 {
     use super::*;
 
-    #[derive(Clone, Properties)]
+    #[derive(PartialEq, Properties)]
     pub struct Props<T>
     where
-        T: Clone + Default,
+        T: PartialEq + Default,
     {
         #[prop_or_default]
         value: T,
@@ -69,8 +69,8 @@ mod t4 {
 mod t5 {
     use super::*;
 
-    #[derive(Clone, Properties)]
-    pub struct Props<'a, T: Clone + Default + 'a> {
+    #[derive(PartialEq, Properties)]
+    pub struct Props<'a, T: PartialEq + Default + 'a> {
         #[prop_or_default]
         static_value: &'static str,
         value: &'a T,
@@ -89,10 +89,10 @@ mod t6 {
     use super::*;
     use std::str::FromStr;
 
-    #[derive(Properties, Clone)]
-    pub struct Props<T: FromStr + Clone>
+    #[derive(Properties, PartialEq)]
+    pub struct Props<T: FromStr + PartialEq>
     where
-        <T as FromStr>::Err: Clone,
+        <T as FromStr>::Err: PartialEq,
     {
         value: Result<T, <T as FromStr>::Err>,
     }
@@ -113,7 +113,7 @@ mod t7 {
         Two,
     }
 
-    #[derive(Clone, Properties)]
+    #[derive(PartialEq, Properties)]
     pub struct Props {
         #[prop_or(Foo::One)]
         value: Foo,
@@ -129,7 +129,7 @@ mod t7 {
 mod t8 {
     use super::*;
 
-    #[derive(Clone, Properties)]
+    #[derive(PartialEq, Properties)]
     pub struct Props {
         #[prop_or_else(|| 123)]
         value: i32,
@@ -146,18 +146,18 @@ mod t9 {
     use super::*;
     use std::str::FromStr;
 
-    #[derive(Clone, Properties)]
-    pub struct Props<T: FromStr + Clone>
+    #[derive(PartialEq, Properties)]
+    pub struct Props<T: FromStr + PartialEq>
     where
-        <T as FromStr>::Err: Clone,
+        <T as FromStr>::Err: PartialEq,
     {
         #[prop_or_else(default_value)]
         value: Result<T, <T as FromStr>::Err>,
     }
 
-    fn default_value<T: FromStr + Clone>() -> Result<T, <T as FromStr>::Err>
+    fn default_value<T: FromStr + PartialEq>() -> Result<T, <T as FromStr>::Err>
     where
-        <T as FromStr>::Err: Clone,
+        <T as FromStr>::Err: PartialEq,
     {
         "123".parse()
     }
@@ -174,11 +174,11 @@ mod t10 {
 
     // this test makes sure that Yew handles generic params with default values properly.
 
-    #[derive(Clone, Properties)]
+    #[derive(PartialEq, Properties)]
     pub struct Foo<S, M = S>
     where
-        S: Clone,
-        M: Clone,
+        S: PartialEq,
+        M: PartialEq,
     {
         bar: S,
         baz: M,

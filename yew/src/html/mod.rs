@@ -1,11 +1,9 @@
-//! The main html module which defines components, listeners, and class helpers.
+//! The main html module defines components, listeners, and class helpers.
 
 mod classes;
-mod component;
 mod listener;
 
 pub use classes::*;
-pub use component::*;
 pub use listener::*;
 
 use crate::virtual_dom::VNode;
@@ -45,13 +43,13 @@ pub type Html = VNode;
 ///     type Message = ();
 ///     type Properties = ();
 ///
-///     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
+///     fn create(_: &Link<Self>) -> Self {
 ///         Input {
 ///             node_ref: NodeRef::default(),
 ///         }
 ///     }
 ///
-///     fn rendered(&mut self, first_render: bool) {
+///     fn rendered(&mut self, _ctx: &Link<Self>, first_render: bool) {
 ///         if first_render {
 ///             if let Some(input) = self.node_ref.cast::<InputElement>() {
 ///                 input.focus();
@@ -59,15 +57,7 @@ pub type Html = VNode;
 ///         }
 ///     }
 ///
-///     fn change(&mut self, _: Self::Properties) -> ShouldRender {
-///         false
-///     }
-///
-///     fn update(&mut self, _: Self::Message) -> ShouldRender {
-///         false
-///     }
-///
-///     fn view(&self) -> Html {
+///     fn view(&self, _ctx: &Link<Self>) -> Html {
 ///         html! {
 ///             <input ref=self.node_ref.clone() type="text" />
 ///         }

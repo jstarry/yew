@@ -1,10 +1,12 @@
 //! This module contains the `App` struct, which is used to bootstrap
-//! a component in an isolated scope.
+//! a component in an isolated context.
 
-use crate::html::{Component, ComponentLink, NodeRef, Scope};
+use crate::component::{Component, ComponentLink};
+use crate::html::NodeRef;
 use crate::utils::document;
-use cfg_if::cfg_if;
-cfg_if! {
+use std::rc::Rc;
+
+cfg_if::cfg_if! {
     if #[cfg(feature = "std_web")] {
         use stdweb::web::{Element, INode, IParentNode};
     } else if #[cfg(feature = "web_sys")] {
@@ -15,8 +17,7 @@ cfg_if! {
 /// An instance of an application.
 #[derive(Debug)]
 pub struct App<COMP: Component> {
-    /// `Scope` holder
-    scope: Scope<COMP>,
+    _marker: std::marker::PhantomData<COMP>,
 }
 
 impl<COMP> Default for App<COMP>
@@ -39,13 +40,15 @@ where
     /// will render the model to a virtual DOM tree. If you would like to pass props,
     /// use the `mount_with_props` method.
     pub fn mount(self, element: Element) -> ComponentLink<COMP> {
+        let context = ComponentLink::new(None);
+
         clear_element(&element);
-        self.scope.mount_in_place(
+        context.mount_in_place(
             element,
             NodeRef::default(),
             None,
             NodeRef::default(),
-            COMP::Properties::default(),
+            Rc::new(COMP::Properties::default()),
         )
     }
 
@@ -75,12 +78,14 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
+
+        let context = ComponentLink::new(None);
+        context.mount_in_place(
             html_element,
             NodeRef::default(),
             None,
             NodeRef::default(),
-            COMP::Properties::default(),
+            Rc::new(COMP::Properties::default()),
         )
     }
 }
@@ -91,8 +96,9 @@ where
 {
     /// Creates a new `App` with a component in a context.
     pub fn new() -> Self {
-        let scope = Scope::new(None);
-        App { scope }
+        Self {
+            _marker: std::marker::PhantomData::<COMP>,
+        }
     }
 
     /// The main entry point of a Yew program which also allows passing properties. It works
@@ -105,8 +111,14 @@ where
         props: COMP::Properties,
     ) -> ComponentLink<COMP> {
         clear_element(&element);
-        self.scope
-            .mount_in_place(element, NodeRef::default(), None, NodeRef::default(), props)
+        let context = ComponentLink::new(None);
+        context.mount_in_place(
+            element,
+            NodeRef::default(),
+            None,
+            NodeRef::default(),
+            Rc::new(props),
+        )
     }
 
     /// Alias to `mount_with_props("body", ...)`.
@@ -135,12 +147,13 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        self.scope.mount_in_place(
+        let context = ComponentLink::new(None);
+        context.mount_in_place(
             html_element,
             NodeRef::default(),
             None,
             NodeRef::default(),
-            props,
+            Rc::new(props),
         )
     }
 }

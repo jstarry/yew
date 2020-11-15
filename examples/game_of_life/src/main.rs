@@ -2,7 +2,7 @@ use cell::Cellule;
 use rand::Rng;
 use std::time::Duration;
 use yew::services::interval::{IntervalService, IntervalTask};
-use yew::{classes, html, Component, ComponentLink, Html, ShouldRender};
+use yew::{classes, html, Component, Context, Html, ShouldRender};
 
 mod cell;
 
@@ -17,7 +17,6 @@ pub enum Msg {
 }
 
 pub struct Model {
-    link: ComponentLink<Self>,
     active: bool,
     cellules: Vec<Cellule>,
     cellules_width: usize,
@@ -87,7 +86,7 @@ impl Model {
         row * self.cellules_width + col
     }
 
-    fn view_cellule(&self, idx: usize, cellule: &Cellule) -> Html {
+    fn view_cellule(ctx: &Context<Self>, idx: usize, cellule: &Cellule) -> Html {
         let cellule_status = {
             if cellule.is_alive() {
                 "cellule-live"
@@ -97,23 +96,23 @@ impl Model {
         };
         html! {
             <div key=idx class=classes!("game-cellule", cellule_status)
-                onclick=self.link.callback(move |_| Msg::ToggleCellule(idx))>
+                onclick=ctx.callback(move |_| Msg::ToggleCellule(idx))>
             </div>
         }
     }
 }
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let callback = link.callback(|_| Msg::Tick);
+    fn create(ctx: &Context<Self>) -> Self {
+        let callback = ctx.callback(|_| Msg::Tick);
         let task = IntervalService::spawn(Duration::from_millis(200), callback);
 
         let (cellules_width, cellules_height) = (53, 40);
 
         Self {
-            link,
             active: false,
             cellules: vec![Cellule::new_dead(); cellules_width * cellules_height],
             cellules_width,
@@ -122,7 +121,7 @@ impl Component for Model {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::Random => {
                 self.random_mutate();
@@ -164,11 +163,7 @@ impl Component for Model {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let cell_rows =
             self.cellules
                 .chunks(self.cellules_width)
@@ -179,7 +174,7 @@ impl Component for Model {
                     let cells = cellules
                         .iter()
                         .enumerate()
-                        .map(|(x, cell)| self.view_cellule(idx_offset + x, cell));
+                        .map(|(x, cell)| Self::view_cellule(ctx, idx_offset + x, cell));
                     html! {
                         <div key=y class="game-row">
                             { for cells }
@@ -199,11 +194,11 @@ impl Component for Model {
                             { for cell_rows }
                         </div>
                         <div class="game-buttons">
-                            <button class="game-button" onclick=self.link.callback(|_| Msg::Random)>{ "Random" }</button>
-                            <button class="game-button" onclick=self.link.callback(|_| Msg::Step)>{ "Step" }</button>
-                            <button class="game-button" onclick=self.link.callback(|_| Msg::Start)>{ "Start" }</button>
-                            <button class="game-button" onclick=self.link.callback(|_| Msg::Stop)>{ "Stop" }</button>
-                            <button class="game-button" onclick=self.link.callback(|_| Msg::Reset)>{ "Reset" }</button>
+                            <button class="game-button" onclick=ctx.callback(|_| Msg::Random)>{ "Random" }</button>
+                            <button class="game-button" onclick=ctx.callback(|_| Msg::Step)>{ "Step" }</button>
+                            <button class="game-button" onclick=ctx.callback(|_| Msg::Start)>{ "Start" }</button>
+                            <button class="game-button" onclick=ctx.callback(|_| Msg::Stop)>{ "Stop" }</button>
+                            <button class="game-button" onclick=ctx.callback(|_| Msg::Reset)>{ "Reset" }</button>
                         </div>
                     </section>
                 </section>

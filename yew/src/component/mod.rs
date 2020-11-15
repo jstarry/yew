@@ -1,20 +1,48 @@
 //! Component trait and related types
 
-mod children;
-mod properties;
-mod scope;
+#![allow(missing_docs)]
 
-use super::Html;
+mod children;
+pub(crate) mod lifecycle;
+pub(crate) mod link;
+mod properties;
+
+use crate::html::Html;
 pub use children::*;
 pub use properties::*;
-pub use scope::{AnyScope, Scope, SendAsMessage};
-pub(crate) use scope::{ComponentUpdate, Scoped};
+pub use link::{AnyLink, ComponentLink};
+use std::fmt;
 
 /// This type indicates that component should be rendered again.
 pub type ShouldRender = bool;
 
-/// Link to component's scope for creating callbacks.
-pub type ComponentLink<COMP> = Scope<COMP>;
+/// Component lifecycle context
+pub struct Context<'a, COMP: Component> {
+    pub link: &'a ComponentLink<COMP>,
+    pub props: &'a COMP::Properties,
+}
+
+impl<COMP: Component> fmt::Debug for Context<'_, COMP> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Context<_>")
+    }
+}
+
+impl<COMP: Component> Clone for Context<'_, COMP> {
+    fn clone(&self) -> Self {
+        Self {
+            link: Clone::clone(&self.link),
+            props: self.props.clone(),
+        }
+    }
+}
+impl<COMP: Component> Copy for Context<'_, COMP> {}
+
+impl<'a, COMP: Component> Context<'a, COMP> {
+    pub(crate) fn new(link: &'a ComponentLink<COMP>, props: &'a COMP::Properties) -> Self {
+        Self { link, props }
+    }
+}
 
 /// Components are the basic building blocks of the UI in a Yew app. Each Component
 /// chooses how to display itself using received props and self-managed state.
@@ -51,11 +79,13 @@ pub trait Component: Sized + 'static {
 
     /// Components are created with their properties as well as a `ComponentLink` which
     /// can be used to send messages and create callbacks for triggering updates.
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self;
+    fn create(_ctx: Context<'_, Self>) -> Self;
 
     /// Components handle messages in their `update` method and commonly use this method
     /// to update their state and (optionally) re-render themselves.
-    fn update(&mut self, msg: Self::Message) -> ShouldRender;
+    fn update(&mut self, _ctx: Context<'_, Self>, _msg: Self::Message) -> ShouldRender {
+        false
+    }
 
     /// When the parent of a Component is re-rendered, it will either be re-created or
     /// receive new properties in the `change` lifecycle method. Component's can choose
@@ -81,12 +111,14 @@ pub trait Component: Sized + 'static {
     ///# }
     /// ```
     /// Components which don't have properties should always return false.
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender;
+    fn changed(&mut self, _ctx: Context<'_, Self>, _new_props: &Self::Properties) -> ShouldRender {
+        true
+    }
 
     /// Components define their visual layout using a JSX-style syntax through the use of the
     /// `html!` procedural macro. The full guide to using the macro can be found in [Yew's
     /// documentation](https://yew.rs/docs/concepts/html).
-    fn view(&self) -> Html;
+    fn view(&self, ctx: Context<'_, Self>) -> Html;
 
     /// The `rendered` method is called after each time a Component is rendered but
     /// before the browser updates the page.
@@ -108,8 +140,8 @@ pub trait Component: Sized + 'static {
     /// }
     ///# }
     /// ```
-    fn rendered(&mut self, _first_render: bool) {}
+    fn rendered(&mut self, _ctx: Context<'_, Self>, _first_render: bool) {}
 
     /// The `destroy` method is called right before a Component is unmounted.
-    fn destroy(&mut self) {}
+    fn destroy(&mut self, _ctx: Context<'_, Self>) {}
 }

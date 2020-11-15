@@ -149,7 +149,7 @@ impl ComponentProps {
                 };
 
                 quote_spanned! {props_ty.span()=>
-                    <#props_ty as ::yew::html::Properties>::builder()
+                    <#props_ty as ::yew::component::Properties>::builder()
                         #(#set_props)*
                         #set_children
                         .build()
