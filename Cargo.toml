@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "yew",
-  # "yew-components",
+  "yew-components",
   "yew-macro",
   "yew-validation",
   #
