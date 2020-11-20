@@ -1,7 +1,6 @@
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::rc::Rc;
-use wasm_bindgen_test;
 use wasm_bindgen_test::*;
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 use yew::{html, App, Children, Html, Properties};
