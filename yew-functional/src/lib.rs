@@ -13,14 +13,14 @@
 //! ```
 //!
 //! More details about function components and Hooks can be found on [Yew Docs](https://yew.rs/docs/en/next/concepts/function-components)
-
 use std::cell::RefCell;
+use std::ops::DerefMut;
 use std::rc::Rc;
 use yew::html::AnyScope;
 use yew::{Component, ComponentLink, Html, Properties};
+mod hooks;
+mod util;
 
-pub mod hooks;
-pub mod util;
 pub use hooks::*;
 /// This attribute creates a function component from a normal Rust function.
 ///
@@ -46,13 +46,13 @@ pub use hooks::*;
 /// pub fn component(props: &Props) -> Html {
 ///     html! {
 ///         <p>{ &props.text }</p>
-///     }xx
+///     }
 /// }
 /// ```
 pub use yew_functional_macro::function_component;
 
 thread_local! {
-    static CURRENT_HOOK: RefCell<Option<HookState>> = RefCell::new(None);
+    pub(crate) static CURRENT_HOOK: RefCell<Option<HookState>> = RefCell::new(None);
 }
 
 type Msg = Box<dyn FnOnce() -> bool>;
@@ -189,8 +189,6 @@ pub fn get_current_scope() -> Option<AnyScope> {
     CURRENT_HOOK.with(|cell| cell.borrow().as_ref().map(|state| state.scope.clone()))
 }
 
-use std::ops::DerefMut;
-
 #[derive(Clone)]
 pub struct HookUpdater {
     hook: Rc<RefCell<dyn std::any::Any>>,
@@ -238,54 +236,40 @@ impl HookUpdater {
     }
 }
 
-pub fn use_hook<InternalHook: 'static, Output, Tear: FnOnce(&mut InternalHook) -> () + 'static>(
-    initializer: impl FnOnce() -> InternalHook,
-    runner: impl FnOnce(&mut InternalHook, HookUpdater) -> Output,
-    tear_down: Tear,
-) -> Output {
-    // Extract current hook
-    let updater = CURRENT_HOOK.with(|hook_state_holder| {
-        let mut hook_state_holder = hook_state_holder
-            .try_borrow_mut()
-            .expect("Nested hooks not supported");
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use yew::prelude::*;
 
-        let mut hook_state = hook_state_holder
-            .as_mut()
-            .expect("No current hook. Hooks can only be called inside function components");
-
-        // Determine which hook position we're at and increment for the next hook
-        let hook_pos = hook_state.counter;
-        hook_state.counter += 1;
-
-        // Initialize hook if this is the first call
-        if hook_pos >= hook_state.hooks.len() {
-            let initial_state = Rc::new(RefCell::new(initializer()));
-            hook_state.hooks.push(initial_state.clone());
-            hook_state.destroy_listeners.push(Box::new(move || {
-                let mut is = initial_state.borrow_mut();
-                let ihook = is.deref_mut();
-                tear_down(ihook);
-            }));
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn props_are_passed() {
+        struct PropsPassedFunction {}
+        #[derive(Properties, Clone, PartialEq)]
+        struct PropsPassedFunctionProps {
+            value: String,
         }
+        impl FunctionProvider for PropsPassedFunction {
+            type TProps = PropsPassedFunctionProps;
 
-        let hook = hook_state
-            .hooks
-            .get(hook_pos)
-            .expect("Not the same number of hooks. Hooks must not be called conditionally")
-            .clone();
-
-        HookUpdater {
-            hook,
-            process_message: hook_state.process_message.clone(),
+            fn run(props: &Self::TProps) -> Html {
+                assert_eq!(&props.value, "props");
+                return html! {
+                    <div id="result">
+                        {"done"}
+                    </div>
+                };
+            }
         }
-    });
-
-    // Execute the actual hook closure we were given. Let it mutate the hook state and let
-    // it create a callback that takes the mutable hook state.
-    let mut hook = updater.hook.borrow_mut();
-    let hook: &mut InternalHook = hook
-        .downcast_mut()
-        .expect("Incompatible hook type. Hooks must always be called in the same order");
-
-    runner(hook, updater.clone())
+        type PropsComponent = FunctionComponent<PropsPassedFunction>;
+        let app: App<PropsComponent> = yew::App::new();
+        app.mount_with_props(
+            yew::utils::document().get_element_by_id("output").unwrap(),
+            PropsPassedFunctionProps {
+                value: "props".to_string(),
+            },
+        );
+        let result = util::obtain_result();
+        assert_eq!(result.as_str(), "done");
+    }
 }

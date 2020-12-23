@@ -5,6 +5,37 @@ struct UseEffect<Destructor> {
     destructor: Option<Box<Destructor>>,
 }
 
+/// This hook is used for hooking into the component's lifecycle.
+///
+/// # Example
+/// ```rust
+/// # use yew_functional::{function_component, use_effect, use_state};
+/// # use yew::prelude::*;
+/// # use std::rc::Rc;
+/// #
+/// #[function_component(UseEffect)]
+/// fn effect() -> Html {
+///     let (counter, set_counter) = use_state(|| 0);
+///
+///     let counter_one = counter.clone();
+///     use_effect(move || {
+///         // Make a call to DOM API after component is rendered
+///         yew::utils::document().set_title(&format!("You clicked {} times", counter_one));
+///
+///         // Perform the cleanup
+///         || yew::utils::document().set_title(&format!("You clicked 0 times"))
+///     });
+///
+///     let onclick = {
+///         let counter = Rc::clone(&counter);
+///         Callback::from(move |_| set_counter(*counter + 1))
+///     };
+///
+///     html! {
+///         <button onclick=onclick>{ format!("Increment to {}", counter) }</button>
+///     }
+/// }
+/// ```
 pub fn use_effect<Destructor>(callback: impl FnOnce() -> Destructor + 'static)
 where
     Destructor: FnOnce() + 'static,
@@ -39,6 +70,11 @@ struct UseEffectDeps<Destructor, Dependents> {
     deps: Rc<Dependents>,
 }
 
+/// This hook is similar to [`use_effect`] but it accepts dependencies.
+///
+/// Whenever the dependencies are changed, the effect callback is called again.
+/// To detect changes, dependencies must implement `PartialEq`.
+/// Note that the destructor also runs when dependencies change.
 pub fn use_effect_with_deps<Callback, Destructor, Dependents>(callback: Callback, deps: Dependents)
 where
     Callback: FnOnce(&Dependents) -> Destructor + 'static,
