@@ -21,6 +21,7 @@ use yew::{Component, ComponentLink, Html, Properties};
 mod hooks;
 mod util;
 pub use hooks::*;
+
 /// This attribute creates a function component from a normal Rust function.
 ///
 /// Functions with this attribute **must** return `Html` and can optionally take an argument for props.
@@ -87,7 +88,7 @@ where
             std::mem::swap(
                 &mut *previous_hook
                     .try_borrow_mut()
-                    .expect("Previous hook still borrowed"),
+                    .expect("use_hook error: hook still borrowed on subsequent renders"),
                 &mut *self.hook_state.borrow_mut(),
             );
         });
@@ -146,7 +147,7 @@ where
         // Reset hook
         self.hook_state
             .try_borrow_mut()
-            .expect("Unexpected concurrent/nested view call")
+            .expect("internal error: unexpected concurrent/nested view call in hook lifecycle")
             .as_mut()
             .unwrap()
             .counter = 0;
@@ -216,7 +217,9 @@ impl HookUpdater {
         process_message(
             Box::new(move || {
                 let mut r = internal_hook_state.borrow_mut();
-                let hook: &mut T = r.downcast_mut().expect("Wrong type");
+                let hook: &mut T = r
+                    .downcast_mut()
+                    .expect("internal error: hook downcasted to wrong type");
                 cb(hook)
             }),
             post_render,
@@ -236,7 +239,9 @@ impl HookUpdater {
         process_message(
             Box::new(move || {
                 let mut hook = internal_hook_state.borrow_mut();
-                let hook: &mut T = hook.downcast_mut().expect("Wrong type");
+                let hook: &mut T = hook
+                    .downcast_mut()
+                    .expect("internal error: hook downcasted to wrong type");
                 cb(hook)
             }),
             post_render,
