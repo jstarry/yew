@@ -72,7 +72,7 @@ pub trait FunctionProvider {
 }
 
 #[derive(Clone, Default)]
-pub struct MsgQueue(Rc<RefCell<Vec<Msg>>>);
+struct MsgQueue(Rc<RefCell<Vec<Msg>>>);
 
 impl MsgQueue {
     fn push(&self, msg: Msg) {
