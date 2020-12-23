@@ -14,13 +14,12 @@
 //!
 //! More details about function components and Hooks can be found on [Yew Docs](https://yew.rs/docs/en/next/concepts/function-components)
 use std::cell::RefCell;
-
 use std::rc::Rc;
 use yew::html::AnyScope;
 use yew::{Component, ComponentLink, Html, Properties};
+
 mod hooks;
 mod util;
-
 pub use hooks::*;
 /// This attribute creates a function component from a normal Rust function.
 ///
@@ -69,19 +68,6 @@ struct HookState {
 pub trait FunctionProvider {
     type TProps: Properties + PartialEq;
     fn run(props: &Self::TProps) -> Html;
-}
-
-#[derive(Clone, Default)]
-struct MsgQueue(Rc<RefCell<Vec<Msg>>>);
-
-impl MsgQueue {
-    fn push(&self, msg: Msg) {
-        self.0.borrow_mut().push(msg);
-    }
-
-    fn drain(&self) -> Vec<Msg> {
-        self.0.borrow_mut().drain(..).collect()
-    }
 }
 
 pub struct FunctionComponent<T: FunctionProvider + 'static> {
@@ -189,6 +175,28 @@ pub fn get_current_scope() -> Option<AnyScope> {
     CURRENT_HOOK.with(|cell| cell.borrow().as_ref().map(|state| state.scope.clone()))
 }
 
+#[derive(Clone, Default)]
+struct MsgQueue(Rc<RefCell<Vec<Msg>>>);
+
+impl MsgQueue {
+    fn push(&self, msg: Msg) {
+        self.0.borrow_mut().push(msg);
+    }
+
+    fn drain(&self) -> Vec<Msg> {
+        self.0.borrow_mut().drain(..).collect()
+    }
+}
+
+/// The `HookUpdater` provides a convenient interface for hooking into the lifecycle of
+/// the underlying Yew Component that backs the function component.
+///
+/// Two interfaces are provided - callback and post_render.
+/// - `callback` allows the creation of regular yew callbacks on the host component.
+/// - `post_render` allows the creation of events that happen after a render is complete.
+///
+/// See use_effect and use_context for more details on how to use the hook updater to provide
+/// function components the necessary callbacks to update the underlying state.
 #[derive(Clone)]
 pub struct HookUpdater {
     hook: Rc<RefCell<dyn std::any::Any>>,
