@@ -39,9 +39,11 @@ pub fn use_state<T: 'static, F: FnOnce() -> T + 'static>(
     initial_state_fn: F,
 ) -> (Rc<T>, Rc<dyn Fn(T)>) {
     use_hook(
+        // Initializer
         move || UseState {
             current: Rc::new(initial_state_fn()),
         },
+        // Runner
         move |hook, updater| {
             let setter: Rc<(dyn Fn(T))> = Rc::new(move |new_val: T| {
                 updater.callback(move |st: &mut UseState<T>| {
@@ -53,6 +55,7 @@ pub fn use_state<T: 'static, F: FnOnce() -> T + 'static>(
             let current = hook.current.clone();
             (current, setter)
         },
+        // Teardown
         |_| {},
     )
 }

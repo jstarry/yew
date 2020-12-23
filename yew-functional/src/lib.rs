@@ -14,7 +14,7 @@
 //!
 //! More details about function components and Hooks can be found on [Yew Docs](https://yew.rs/docs/en/next/concepts/function-components)
 use std::cell::RefCell;
-use std::ops::DerefMut;
+
 use std::rc::Rc;
 use yew::html::AnyScope;
 use yew::{Component, ComponentLink, Html, Properties};

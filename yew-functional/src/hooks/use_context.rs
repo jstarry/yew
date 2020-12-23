@@ -171,7 +171,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::{use_effect, use_effect_with_deps, use_ref, use_state};
+    use crate::hooks::{use_effect, use_ref, use_state};
     use crate::util::*;
     use crate::{FunctionComponent, FunctionProvider};
     use wasm_bindgen_test::*;
