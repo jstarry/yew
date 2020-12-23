@@ -1,10 +1,26 @@
-use std::cell::RefCell;
+//! Function components are a simplified version of normal components.
+//! They consist of a single function annotated with the attribute `#[function_component(_)]`
+//! that receives props and determines what should be rendered by returning [`Html`].
+//!
+//! ```rust
+//! # use yew_functional::function_component;
+//! # use yew::prelude::*;
+//! #
+//! #[function_component(HelloWorld)]
+//! fn hello_world() -> Html {
+//!     html! { "Hello world" }
+//! }
+//! ```
+//!
+//! More details about function components and Hooks can be found on [Yew Docs](https://yew.rs/docs/en/next/concepts/function-components)
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use yew::html::AnyScope;
 use yew::{Component, ComponentLink, Html, Properties};
 
 pub mod hooks;
+pub mod util;
 pub use hooks::*;
 /// This attribute creates a function component from a normal Rust function.
 ///
@@ -30,7 +46,7 @@ pub use hooks::*;
 /// pub fn component(props: &Props) -> Html {
 ///     html! {
 ///         <p>{ &props.text }</p>
-///     }
+///     }xx
 /// }
 /// ```
 pub use yew_functional_macro::function_component;
@@ -222,17 +238,11 @@ impl HookUpdater {
     }
 }
 
-pub trait Hook {
-    type Output;
-    type Args;
-    fn tear_down(&mut self) {}
-    fn runner(&mut self, args: Self::Args, updater: HookUpdater) -> Self::Output;
-}
-
-pub fn use_hook<InternalHook: Hook + 'static, I: FnOnce() -> InternalHook>(
-    args: InternalHook::Args,
-    initializer: I,
-) -> InternalHook::Output {
+pub fn use_hook<InternalHook: 'static, Output, Tear: FnOnce(&mut InternalHook) -> () + 'static>(
+    initializer: impl FnOnce() -> InternalHook,
+    runner: impl FnOnce(&mut InternalHook, HookUpdater) -> Output,
+    tear_down: Tear,
+) -> Output {
     // Extract current hook
     let updater = CURRENT_HOOK.with(|hook_state_holder| {
         let mut hook_state_holder = hook_state_holder
@@ -252,7 +262,9 @@ pub fn use_hook<InternalHook: Hook + 'static, I: FnOnce() -> InternalHook>(
             let initial_state = Rc::new(RefCell::new(initializer()));
             hook_state.hooks.push(initial_state.clone());
             hook_state.destroy_listeners.push(Box::new(move || {
-                initial_state.borrow_mut().deref_mut().tear_down();
+                let mut is = initial_state.borrow_mut();
+                let ihook = is.deref_mut();
+                tear_down(ihook);
             }));
         }
 
@@ -275,5 +287,5 @@ pub fn use_hook<InternalHook: Hook + 'static, I: FnOnce() -> InternalHook>(
         .downcast_mut()
         .expect("Incompatible hook type. Hooks must always be called in the same order");
 
-    hook.runner(args, updater.clone())
+    runner(hook, updater.clone())
 }
