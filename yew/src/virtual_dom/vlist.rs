@@ -1,6 +1,7 @@
 //! This module contains fragments implementation.
 use super::{Key, VDiff, VNode, VText};
-use crate::html::{AnyScope, NodeRef};
+use crate::html::NodeRef;
+use crate::component::AnyContext;
 use cfg_if::cfg_if;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
@@ -77,7 +78,7 @@ impl VDiff for VList {
 
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
+        parent_context: &AnyContext,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -214,7 +215,7 @@ impl VDiff for VList {
                 // returned `node` reference so that the previous left has an up-to-date `next_sibling`.
                 // This is important for rendering a `VComp` because each `VComp` keeps track of its
                 // `next_sibling` to properly render its children.
-                let node = left.apply(parent_scope, parent, new_next_sibling.clone(), ancestor);
+                let node = left.apply(parent_context, parent, new_next_sibling.clone(), ancestor);
                 last_next_sibling.link(node.clone());
                 last_next_sibling = new_next_sibling;
                 node
@@ -320,7 +321,8 @@ mod layout_tests_keys {
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::virtual_dom::VNode;
-    use crate::{Children, Component, Context, Html, Properties, ShouldRender};
+    use crate::component::{Component, Context, Properties, ShouldRender};
+    use crate::{Children, Html};
     use web_sys::Node;
 
     #[cfg(feature = "wasm_test")]

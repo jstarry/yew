@@ -4,15 +4,11 @@
 //! to create own UI-components.
 
 mod listener;
-mod scope;
 
 pub use listener::*;
-pub use scope::{AnyScope, Scope, SendAsMessage};
-pub(crate) use scope::{ComponentUpdate, Scoped};
 pub use yew_macro::Properties;
 
-use crate::callback::Callback;
-use crate::component::Context;
+use crate::component::{self, Context};
 use crate::virtual_dom::{VChild, VNode};
 use cfg_if::cfg_if;
 use cfg_match::cfg_match;
@@ -29,13 +25,26 @@ cfg_if! {
     }
 }
 
+#[deprecated(
+    since = "0.18.0",
+    note = "Please switch to the yew::component::Component trait"
+)]
+/// A scope which allows sending messages to a component.
+pub type Scope<T> = Context<T>;
+
+#[deprecated(
+    since = "0.18.0",
+    note = "Please switch to the yew::component::ShouldRender type"
+)]
 /// This type indicates that component should be rendered again.
-pub type ShouldRender = bool;
+pub type ShouldRender = component::ShouldRender;
 
 /// Wrapper for legacy components
 #[derive(Debug)]
+#[allow(deprecated)]
 pub struct Legacy<T: LegacyComponent>(T);
 
+#[allow(deprecated)]
 impl<T: LegacyComponent> yew::component::Component for Legacy<T> {
     type Message = T::Message;
     type Properties = T::Properties;
@@ -102,14 +111,17 @@ pub trait LegacyComponent: Sized + 'static {
     /// }
     ///# }}
     /// ```
+    #[allow(deprecated)]
     type Properties: Properties + Clone;
 
     /// Components are created with their properties as well as a `ComponentLink` which
     /// can be used to send messages and create callbacks for triggering updates.
+    #[allow(deprecated)]
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self;
 
     /// Components handle messages in their `update` method and commonly use this method
     /// to update their state and (optionally) re-render themselves.
+    #[allow(deprecated)]
     fn update(&mut self, msg: Self::Message) -> ShouldRender;
 
     /// When the parent of a Component is re-rendered, it will either be re-created or
@@ -136,6 +148,7 @@ pub trait LegacyComponent: Sized + 'static {
     ///# }
     /// ```
     /// Components which don't have properties should always return false.
+    #[allow(deprecated)]
     fn change(&mut self, _props: Self::Properties) -> ShouldRender;
 
     /// Components define their visual layout using a JSX-style syntax through the use of the
@@ -492,35 +505,34 @@ impl NodeRef {
     }
 }
 
-/// Trait for building properties for a component
-pub trait Properties: PartialEq {
-    /// Builder that will be used to construct properties
-    type Builder;
+/// Trait for building properties for a component.
+#[deprecated(
+    since = "0.18.0",
+    note = "Please switch to the yew::component::context::SendAsMessage trait"
+)]
+pub trait SendAsMessage<COMP: component::Component>: component::context::SendAsMessage<COMP> {}
 
-    /// Entrypoint for building properties
-    fn builder() -> Self::Builder;
+#[allow(deprecated)]
+impl<T, COMP> SendAsMessage<COMP> for T where T: component::context::SendAsMessage<COMP>, COMP: component::Component {}
+
+/// Trait for building properties for a component.
+#[deprecated(
+    since = "0.18.0",
+    note = "Please switch to the yew::component::Properties trait"
+)]
+pub trait Properties: component::Properties {}
+
+#[allow(deprecated)]
+impl<T> Properties for T where T: component::Properties {
 }
 
-/// Builder for when a component has no properties
-#[derive(Debug)]
-#[doc(hidden)]
-pub struct EmptyBuilder;
 
-impl Properties for () {
-    type Builder = EmptyBuilder;
-
-    fn builder() -> Self::Builder {
-        EmptyBuilder
-    }
-}
-
-impl EmptyBuilder {
-    /// Build empty properties
-    pub fn build(self) {}
-}
-
-/// Link to component's scope for creating callbacks.
-pub type ComponentLink<COMP> = Scope<Legacy<COMP>>;
+/// Link to `LegacyComponent` context for creating callbacks.
+#[deprecated(
+    since = "0.18.0",
+    note = "Please switch to the yew::component::Component trait and yew::component::Context struct"
+)]
+pub type ComponentLink<COMP> = Context<Legacy<COMP>>;
 
 #[cfg(test)]
 mod tests {

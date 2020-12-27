@@ -1,8 +1,11 @@
 //! This module contains the implementation of a virtual component (`VComp`).
 
 use super::{Key, Transformer, VDiff, VNode};
-use crate::component::Component;
-use crate::html::{AnyScope, ComponentUpdate, NodeRef, Scope, Scoped};
+use crate::component::{
+    context::{ComponentUpdate, ContextHandle},
+    AnyContext, Component, Context,
+};
+use crate::html::NodeRef;
 use crate::utils::document;
 use cfg_if::cfg_if;
 use std::{any::TypeId, borrow::Borrow, cell::RefCell, fmt, ops::Deref, rc::Rc};
@@ -17,7 +20,7 @@ cfg_if! {
 /// A virtual component.
 pub struct VComp {
     type_id: TypeId,
-    scope: Option<Box<dyn Scoped>>,
+    context: Option<Box<dyn ContextHandle>>,
     props: Option<Box<dyn Mountable>>,
     pub(crate) node_ref: NodeRef,
     pub(crate) key: Option<Key>,
@@ -25,13 +28,13 @@ pub struct VComp {
 
 impl Clone for VComp {
     fn clone(&self) -> Self {
-        if self.scope.is_some() {
+        if self.context.is_some() {
             panic!("Mounted components are not allowed to be cloned!");
         }
 
         Self {
             type_id: self.type_id,
-            scope: None,
+            context: None,
             props: self.props.as_ref().map(|m| m.copy()),
             node_ref: self.node_ref.clone(),
             key: self.key.clone(),
@@ -107,14 +110,16 @@ impl VComp {
             type_id: TypeId::of::<COMP>(),
             node_ref,
             props: Some(Box::new(PropsWrapper::<COMP>::new(props))),
-            scope: None,
+            context: None,
             key,
         }
     }
 
     #[allow(unused)]
     pub(crate) fn root_vnode(&self) -> Option<impl Deref<Target = VNode> + '_> {
-        self.scope.as_ref().and_then(|scope| scope.root_vnode())
+        self.context
+            .as_ref()
+            .and_then(|context| context.root_vnode())
     }
 }
 
@@ -123,11 +128,16 @@ trait Mountable {
     fn mount(
         self: Box<Self>,
         node_ref: NodeRef,
-        parent_scope: &AnyScope,
+        parent_context: &AnyContext,
         parent: Element,
         next_sibling: NodeRef,
-    ) -> Box<dyn Scoped>;
-    fn reuse(self: Box<Self>, node_ref: NodeRef, scope: &dyn Scoped, next_sibling: NodeRef);
+    ) -> Box<dyn ContextHandle>;
+    fn reuse(
+        self: Box<Self>,
+        node_ref: NodeRef,
+        context: &dyn ContextHandle,
+        next_sibling: NodeRef,
+    );
 }
 
 struct PropsWrapper<COMP: Component> {
@@ -151,24 +161,30 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
     fn mount(
         self: Box<Self>,
         node_ref: NodeRef,
-        parent_scope: &AnyScope,
+        parent_context: &AnyContext,
         parent: Element,
         next_sibling: NodeRef,
-    ) -> Box<dyn Scoped> {
-        let scope: Scope<COMP> = Scope::new(Some(Rc::new(parent_scope.clone())), self.props);
-        let scope = scope.mount_in_place(
+    ) -> Box<dyn ContextHandle> {
+        let context: Context<COMP> =
+            Context::new(Some(Rc::new(parent_context.clone())), self.props);
+        let context = context.mount_in_place(
             parent,
             next_sibling,
             Some(VNode::VRef(node_ref.get().unwrap())),
             node_ref,
         );
 
-        Box::new(scope)
+        Box::new(context)
     }
 
-    fn reuse(self: Box<Self>, node_ref: NodeRef, scope: &dyn Scoped, next_sibling: NodeRef) {
-        let scope: Scope<COMP> = scope.to_any().downcast();
-        scope.update(ComponentUpdate::Properties(
+    fn reuse(
+        self: Box<Self>,
+        node_ref: NodeRef,
+        context: &dyn ContextHandle,
+        next_sibling: NodeRef,
+    ) {
+        let context: Context<COMP> = context.to_any().downcast();
+        context.update(ComponentUpdate::Properties(
             self.props,
             node_ref,
             next_sibling,
@@ -178,12 +194,12 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
 
 impl VDiff for VComp {
     fn detach(&mut self, _parent: &Element) {
-        self.scope.take().expect("VComp is not mounted").destroy();
+        self.context.take().expect("VComp is not mounted").destroy();
     }
 
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
+        parent_context: &AnyContext,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -195,9 +211,9 @@ impl VDiff for VComp {
                 // If the ancestor is the same type, reuse it and update its properties
                 if self.type_id == vcomp.type_id && self.key == vcomp.key {
                     self.node_ref.reuse(vcomp.node_ref.clone());
-                    let scope = vcomp.scope.take().expect("VComp is not mounted");
-                    mountable.reuse(self.node_ref.clone(), scope.borrow(), next_sibling);
-                    self.scope = Some(scope);
+                    let context = vcomp.context.take().expect("VComp is not mounted");
+                    mountable.reuse(self.node_ref.clone(), context.borrow(), next_sibling);
+                    self.context = Some(context);
                     return vcomp.node_ref.clone();
                 }
             }
@@ -208,13 +224,13 @@ impl VDiff for VComp {
         let placeholder: Node = document().create_text_node("").into();
         super::insert_node(&placeholder, parent, next_sibling.get());
         self.node_ref.set(Some(placeholder));
-        let scope = mountable.mount(
+        let context = mountable.mount(
             self.node_ref.clone(),
-            parent_scope,
+            parent_context,
             parent.to_owned(),
             next_sibling,
         );
-        self.scope = Some(scope);
+        self.context = Some(context);
         self.node_ref.clone()
     }
 }
@@ -288,7 +304,8 @@ impl<COMP: Component> fmt::Debug for VChild<COMP> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{html, Children, Component, Context, Html, NodeRef, Properties};
+    use crate::component::{Component, Context, Properties};
+    use crate::{html, Children, Html, NodeRef};
     use cfg_match::cfg_match;
 
     #[cfg(feature = "std_web")]
@@ -326,17 +343,17 @@ mod tests {
     #[test]
     fn update_loop() {
         let document = crate::utils::document();
-        let parent_scope: AnyScope =
-            crate::html::Scope::<Comp>::new(None, Rc::new(Props::default())).into();
+        let parent_context: AnyContext =
+            Context::<Comp>::new(None, Rc::new(Props::default())).into();
         let parent_element = document.create_element("div").unwrap();
 
         let mut ancestor = html! { <Comp></Comp> };
-        ancestor.apply(&parent_scope, &parent_element, NodeRef::default(), None);
+        ancestor.apply(&parent_context, &parent_element, NodeRef::default(), None);
 
         for _ in 0..10000 {
             let mut node = html! { <Comp></Comp> };
             node.apply(
-                &parent_scope,
+                &parent_context,
                 &parent_element,
                 NodeRef::default(),
                 Some(ancestor),
@@ -475,11 +492,11 @@ mod tests {
     }
 
     #[cfg(feature = "web_sys")]
-    use super::{AnyScope, Element};
+    use super::{AnyContext, Element};
 
     #[cfg(feature = "web_sys")]
-    fn setup_parent() -> (AnyScope, Element) {
-        let scope = AnyScope {
+    fn setup_parent() -> (AnyContext, Element) {
+        let context = AnyContext {
             type_id: TypeId::of::<()>(),
             parent: None,
             props: Rc::new(()),
@@ -489,22 +506,22 @@ mod tests {
 
         document().body().unwrap().append_child(&parent).unwrap();
 
-        (scope, parent)
+        (context, parent)
     }
 
     #[cfg(feature = "web_sys")]
-    fn get_html(mut node: Html, scope: &AnyScope, parent: &Element) -> String {
+    fn get_html(mut node: Html, context: &AnyContext, parent: &Element) -> String {
         // clear parent
         parent.set_inner_html("");
 
-        node.apply(&scope, &parent, NodeRef::default(), None);
+        node.apply(&context, &parent, NodeRef::default(), None);
         parent.inner_html()
     }
 
     #[test]
     #[cfg(feature = "web_sys")]
     fn all_ways_of_passing_children_work() {
-        let (scope, parent) = setup_parent();
+        let (context, parent) = setup_parent();
 
         let children: Vec<_> = vec!["a", "b", "c"]
             .drain(..)
@@ -521,7 +538,7 @@ mod tests {
         let prop_method = html! {
             <List children=children_renderer.clone()/>
         };
-        assert_eq!(get_html(prop_method, &scope, &parent), expected_html);
+        assert_eq!(get_html(prop_method, &context, &parent), expected_html);
 
         let children_renderer_method = html! {
             <List>
@@ -529,7 +546,7 @@ mod tests {
             </List>
         };
         assert_eq!(
-            get_html(children_renderer_method, &scope, &parent),
+            get_html(children_renderer_method, &context, &parent),
             expected_html
         );
 
@@ -538,19 +555,19 @@ mod tests {
                 { children.clone() }
             </List>
         };
-        assert_eq!(get_html(direct_method, &scope, &parent), expected_html);
+        assert_eq!(get_html(direct_method, &context, &parent), expected_html);
 
         let for_method = html! {
             <List>
                 { for children }
             </List>
         };
-        assert_eq!(get_html(for_method, &scope, &parent), expected_html);
+        assert_eq!(get_html(for_method, &context, &parent), expected_html);
     }
 
     #[test]
     fn reset_node_ref() {
-        let scope = AnyScope {
+        let context = AnyContext {
             type_id: TypeId::of::<()>(),
             parent: None,
             state: Rc::new(()),
@@ -565,7 +582,7 @@ mod tests {
 
         let node_ref = NodeRef::default();
         let mut elem: VNode = html! { <Comp ref=node_ref.clone()></Comp> };
-        elem.apply(&scope, &parent, NodeRef::default(), None);
+        elem.apply(&context, &parent, NodeRef::default(), None);
         let parent_node = cfg_match! {
             feature = "std_web" => parent.as_node(),
             feature = "web_sys" => parent.deref(),
@@ -580,9 +597,10 @@ mod tests {
 mod layout_tests {
     extern crate self as yew;
 
+    use crate::component::{Component, Context, Properties};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
-    use crate::{Children, Component, Context, Html, Properties};
+    use crate::{Children, Html};
     use std::marker::PhantomData;
 
     #[cfg(feature = "wasm_test")]

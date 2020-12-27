@@ -18,8 +18,8 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use std::rc::Rc;
-use yew::html::AnyScope;
-use yew::{Component, Context, Html, Properties};
+use yew::component::{Component, AnyContext, Context, Properties};
+use yew::html::Html;
 
 mod use_context_hook;
 pub use use_context_hook::*;
@@ -65,7 +65,7 @@ type ProcessMessage = Rc<dyn Fn(Msg, bool)>;
 
 struct HookState {
     counter: usize,
-    scope: AnyScope,
+    scope: AnyContext,
     process_message: ProcessMessage,
     hooks: Vec<Rc<RefCell<dyn std::any::Any>>>,
     destroy_listeners: Vec<Box<dyn FnOnce()>>,
@@ -119,7 +119,7 @@ where
     type Properties = T::TProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let scope = AnyScope::from(ctx.clone());
+        let scope = AnyContext::from(ctx.clone());
         let message_queue = MsgQueue::default();
         let ctx = ctx.clone();
         Self {
@@ -629,6 +629,6 @@ where
     hook_runner(&mut hook, hook_callback)
 }
 
-pub(crate) fn get_current_scope() -> Option<AnyScope> {
+pub(crate) fn get_current_scope() -> Option<AnyContext> {
     CURRENT_HOOK.with(|cell| cell.borrow().as_ref().map(|state| state.scope.clone()))
 }

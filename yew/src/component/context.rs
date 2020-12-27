@@ -1,7 +1,7 @@
-use super::{Callback, NodeRef};
 use crate::component::Component;
 use crate::scheduler::{scheduler, ComponentRunnableType, Runnable, Shared};
 use crate::virtual_dom::{VDiff, VNode};
+use crate::{Callback, NodeRef};
 use cfg_if::cfg_if;
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell};
@@ -16,7 +16,7 @@ cfg_if! {
     }
 }
 
-/// Updates for a `Component` instance. Used by scope sender.
+/// Updates for a `Component` instance. Used by context sender.
 pub(crate) enum ComponentUpdate<COMP: Component> {
     /// First update
     First,
@@ -28,29 +28,29 @@ pub(crate) enum ComponentUpdate<COMP: Component> {
     Properties(Rc<COMP::Properties>, NodeRef, NodeRef),
 }
 
-/// Untyped scope used for accessing parent scope
+/// Untyped context used for accessing parent context
 #[derive(Debug, Clone)]
-pub struct AnyScope {
+pub struct AnyContext {
     pub(crate) type_id: TypeId,
-    pub(crate) parent: Option<Rc<AnyScope>>,
+    pub(crate) parent: Option<Rc<AnyContext>>,
     pub(crate) state: Rc<dyn Any>,
     pub(crate) props: Rc<dyn Any>,
 }
 
-impl<COMP: Component> From<Scope<COMP>> for AnyScope {
-    fn from(scope: Scope<COMP>) -> Self {
-        AnyScope {
+impl<COMP: Component> From<Context<COMP>> for AnyContext {
+    fn from(context: Context<COMP>) -> Self {
+        AnyContext {
             type_id: TypeId::of::<COMP>(),
-            parent: scope.parent,
-            state: Rc::new(scope.state),
-            props: scope.props,
+            parent: context.parent,
+            state: Rc::new(context.state),
+            props: context.props,
         }
     }
 }
 
-impl AnyScope {
-    /// Returns the parent scope
-    pub fn get_parent(&self) -> Option<&AnyScope> {
+impl AnyContext {
+    /// Returns the parent context
+    pub fn get_parent(&self) -> Option<&AnyContext> {
         self.parent.as_deref()
     }
 
@@ -59,9 +59,9 @@ impl AnyScope {
         &self.type_id
     }
 
-    /// Attempts to downcast into a typed scope
-    pub fn downcast<COMP: Component>(self) -> Scope<COMP> {
-        Scope {
+    /// Attempts to downcast into a typed context
+    pub fn downcast<COMP: Component>(self) -> Context<COMP> {
+        Context {
             parent: self.parent,
             props: self
                 .props
@@ -76,14 +76,14 @@ impl AnyScope {
     }
 }
 
-pub(crate) trait Scoped {
-    fn to_any(&self) -> AnyScope;
+pub(crate) trait ContextHandle {
+    fn to_any(&self) -> AnyContext;
     fn root_vnode(&self) -> Option<Ref<'_, VNode>>;
     fn destroy(&mut self);
 }
 
-impl<COMP: Component> Scoped for Scope<COMP> {
-    fn to_any(&self) -> AnyScope {
+impl<COMP: Component> ContextHandle for Context<COMP> {
+    fn to_any(&self) -> AnyContext {
         self.clone().into()
     }
 
@@ -115,22 +115,22 @@ impl<COMP: Component> Scoped for Scope<COMP> {
 }
 
 /// A context which allows sending messages to a component.
-pub struct Scope<COMP: Component> {
-    pub(crate) parent: Option<Rc<AnyScope>>,
+pub struct Context<COMP: Component> {
+    pub(crate) parent: Option<Rc<AnyContext>>,
     state: Shared<Option<ComponentState<COMP>>>,
     /// Component properties
     pub props: Rc<COMP::Properties>,
 }
 
-impl<COMP: Component> fmt::Debug for Scope<COMP> {
+impl<COMP: Component> fmt::Debug for Context<COMP> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Scope<_>")
+        f.write_str("Context<_>")
     }
 }
 
-impl<COMP: Component> Clone for Scope<COMP> {
+impl<COMP: Component> Clone for Context<COMP> {
     fn clone(&self) -> Self {
-        Scope {
+        Context {
             parent: self.parent.clone(),
             state: self.state.clone(),
             props: self.props.clone(),
@@ -138,9 +138,9 @@ impl<COMP: Component> Clone for Scope<COMP> {
     }
 }
 
-impl<COMP: Component> Scope<COMP> {
-    /// Returns the parent scope
-    pub fn get_parent(&self) -> Option<&AnyScope> {
+impl<COMP: Component> Context<COMP> {
+    /// Returns the parent context
+    pub fn get_parent(&self) -> Option<&AnyContext> {
         self.parent.as_deref()
     }
 
@@ -154,9 +154,9 @@ impl<COMP: Component> Scope<COMP> {
         })
     }
 
-    pub(crate) fn new(parent: Option<Rc<AnyScope>>, props: Rc<COMP::Properties>) -> Self {
+    pub(crate) fn new(parent: Option<Rc<AnyContext>>, props: Rc<COMP::Properties>) -> Self {
         let state = Rc::new(RefCell::new(None));
-        Scope {
+        Context {
             parent,
             state,
             props,
@@ -170,7 +170,7 @@ impl<COMP: Component> Scope<COMP> {
         next_sibling: NodeRef,
         placeholder: Option<VNode>,
         node_ref: NodeRef,
-    ) -> Scope<COMP> {
+    ) -> Context<COMP> {
         let scheduler = scheduler();
         // Hold scheduler lock so that `create` doesn't run until `update` is scheduled
         let lock = scheduler.lock();
@@ -182,7 +182,7 @@ impl<COMP: Component> Scope<COMP> {
                 next_sibling,
                 placeholder,
                 node_ref,
-                scope: self.clone(),
+                context: self.clone(),
             }),
         );
         self.update(ComponentUpdate::First);
@@ -240,10 +240,10 @@ impl<COMP: Component> Scope<COMP> {
         M: Into<COMP::Message>,
         F: Fn(IN) -> M + 'static,
     {
-        let scope = self.clone();
+        let context = self.clone();
         let closure = move |input| {
             let output = function(input);
-            scope.send_message(output);
+            context.send_message(output);
         };
         closure.into()
     }
@@ -259,10 +259,10 @@ impl<COMP: Component> Scope<COMP> {
         M: Into<COMP::Message>,
         F: FnOnce(IN) -> M + 'static,
     {
-        let scope = self.clone();
+        let context = self.clone();
         let closure = move |input| {
             let output = function(input);
-            scope.send_message(output);
+            context.send_message(output);
         };
         Callback::once(closure)
     }
@@ -287,10 +287,10 @@ impl<COMP: Component> Scope<COMP> {
         F: Fn(IN) -> OUT + 'static,
         OUT: SendAsMessage<COMP>,
     {
-        let scope = self.clone();
+        let context = self.clone();
         let closure = move |input| {
             let messages = function(input);
-            messages.send(&scope);
+            messages.send(&context);
         };
         closure.into()
     }
@@ -315,30 +315,30 @@ impl<COMP: Component> Scope<COMP> {
         F: FnOnce(IN) -> OUT + 'static,
         OUT: SendAsMessage<COMP>,
     {
-        let scope = self.clone();
+        let context = self.clone();
         let closure = move |input| {
             let messages = function(input);
-            messages.send(&scope);
+            messages.send(&context);
         };
         Callback::once(closure)
     }
 }
 
 /// Defines a message type that can be sent to a component.
-/// Used for the return value of closure given to [Scope::batch_callback](struct.Scope.html#method.batch_callback).
+/// Used for the return value of closure given to [Context::batch_callback](struct.Context.html#method.batch_callback).
 pub trait SendAsMessage<COMP: Component> {
-    /// Sends the message to the given component's scope.
-    /// See [Scope::batch_callback](struct.Scope.html#method.batch_callback).
-    fn send(self, scope: &Scope<COMP>);
+    /// Sends the message to the given component's context.
+    /// See [Context::batch_callback](struct.Context.html#method.batch_callback).
+    fn send(self, context: &Context<COMP>);
 }
 
 impl<COMP> SendAsMessage<COMP> for Option<COMP::Message>
 where
     COMP: Component,
 {
-    fn send(self, scope: &Scope<COMP>) {
+    fn send(self, context: &Context<COMP>) {
         if let Some(msg) = self {
-            scope.send_message(msg);
+            context.send_message(msg);
         }
     }
 }
@@ -347,8 +347,8 @@ impl<COMP> SendAsMessage<COMP> for Vec<COMP::Message>
 where
     COMP: Component,
 {
-    fn send(self, scope: &Scope<COMP>) {
-        scope.send_message_batch(self);
+    fn send(self, context: &Context<COMP>) {
+        context.send_message_batch(self);
     }
 }
 
@@ -356,7 +356,7 @@ struct ComponentState<COMP: Component> {
     parent: Element,
     next_sibling: NodeRef,
     node_ref: NodeRef,
-    scope: Scope<COMP>,
+    context: Context<COMP>,
     component: Box<COMP>,
     placeholder: Option<VNode>,
     last_root: Option<VNode>,
@@ -373,14 +373,14 @@ impl<COMP: Component> ComponentState<COMP> {
         next_sibling: NodeRef,
         placeholder: Option<VNode>,
         node_ref: NodeRef,
-        scope: Scope<COMP>,
+        context: Context<COMP>,
     ) -> Self {
-        let component = Box::new(COMP::create(&scope));
+        let component = Box::new(COMP::create(&context));
         Self {
             parent,
             next_sibling,
             node_ref,
-            scope,
+            context,
             component,
             placeholder,
             last_root: None,
@@ -403,7 +403,7 @@ where
     next_sibling: NodeRef,
     placeholder: Option<VNode>,
     node_ref: NodeRef,
-    scope: Scope<COMP>,
+    context: Context<COMP>,
 }
 
 impl<COMP> Runnable for CreateComponent<COMP>
@@ -418,7 +418,7 @@ where
                 self.next_sibling,
                 self.placeholder,
                 self.node_ref,
-                self.scope,
+                self.context,
             ));
         }
     }
@@ -449,10 +449,12 @@ where
 
             let should_update = match self.update {
                 ComponentUpdate::First => true,
-                ComponentUpdate::Message(message) => state.component.update(&state.scope, message),
+                ComponentUpdate::Message(message) => {
+                    state.component.update(&state.context, message)
+                }
                 ComponentUpdate::MessageBatch(messages) => {
                     messages.into_iter().fold(false, |acc, msg| {
-                        state.component.update(&state.scope, msg) || acc
+                        state.component.update(&state.context, msg) || acc
                     })
                 }
                 ComponentUpdate::Properties(props, node_ref, next_sibling) => {
@@ -460,18 +462,18 @@ where
                     state.node_ref = node_ref;
                     // When components are updated, their siblings were likely also updated
                     state.next_sibling = next_sibling;
-                    let should_render = if *state.scope.props != *props {
-                        state.component.changed(&state.scope, &props)
+                    let should_render = if *state.context.props != *props {
+                        state.component.changed(&state.context, &props)
                     } else {
                         false
                     };
-                    state.scope.props = props;
+                    state.context.props = props;
                     should_render
                 }
             };
 
             if should_update {
-                state.new_root = Some(state.component.view(&state.scope));
+                state.new_root = Some(state.component.view(&state.context));
                 scheduler().push_comp(
                     ComponentRunnableType::Render,
                     Box::new(RenderComponent {
@@ -507,9 +509,9 @@ where
 
             if let Some(mut new_root) = state.new_root.take() {
                 let last_root = state.last_root.take().or_else(|| state.placeholder.take());
-                let parent_scope = state.scope.clone().into();
+                let parent_context = state.context.clone().into();
                 let next_sibling = state.next_sibling.clone();
-                let node = new_root.apply(&parent_scope, &state.parent, next_sibling, last_root);
+                let node = new_root.apply(&parent_context, &state.parent, next_sibling, last_root);
                 state.node_ref.link(node);
                 state.last_root = Some(new_root);
                 scheduler().push_comp(
@@ -545,7 +547,7 @@ where
             }
 
             state.has_rendered = true;
-            state.component.rendered(&state.scope, self.first_render);
+            state.component.rendered(&state.context, self.first_render);
             if !state.pending_updates.is_empty() {
                 scheduler().push_comp_update_batch(
                     state
@@ -572,7 +574,7 @@ where
 {
     fn run(self: Box<Self>) {
         if let Some(mut state) = self.state.borrow_mut().take() {
-            state.component.destroy(&state.scope);
+            state.component.destroy(&state.context);
             if let Some(last_frame) = &mut state.last_root {
                 last_frame.detach(&state.parent);
             }
@@ -585,9 +587,11 @@ where
 mod tests {
     extern crate self as yew;
 
+    use super::*;
     use crate::html;
-    use crate::html::*;
-    use crate::Properties;
+    use crate::html::Html;
+    use crate::component::{Component, Context, Properties, ShouldRender};
+
     use std::ops::Deref;
     #[cfg(feature = "wasm_test")]
     use wasm_bindgen_test::{wasm_bindgen_test as test, wasm_bindgen_test_configure};
@@ -600,34 +604,23 @@ mod tests {
         lifecycle: Rc<RefCell<Vec<String>>>,
     }
 
-    struct Child {
-        props: ChildProps,
-    }
-
-    impl LegacyComponent for Child {
+    struct Child;
+    impl Component for Child {
         type Message = ();
         type Properties = ChildProps;
 
-        fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-            Child { props }
+        fn create(_: &Context<Self>) -> Self {
+            Child
         }
 
-        fn rendered(&mut self, _first_render: bool) {
-            self.props
+        fn rendered(&mut self, ctx: &Context<Self>, _first_render: bool) {
+            ctx.props
                 .lifecycle
                 .borrow_mut()
                 .push("child rendered".into());
         }
 
-        fn update(&mut self, _: Self::Message) -> ShouldRender {
-            false
-        }
-
-        fn change(&mut self, _: Self::Properties) -> ShouldRender {
-            false
-        }
-
-        fn view(&self) -> Html {
+        fn view(&self, _ctx: &Context<Self>) -> Html {
             html! {}
         }
     }
@@ -641,72 +634,66 @@ mod tests {
         rendered_message: RefCell<Option<bool>>,
     }
 
-    struct Comp {
-        props: Props,
-        link: ComponentLink<Self>,
-    }
-
-    impl LegacyComponent for Comp {
+    struct Comp;
+    impl Component for Comp {
         type Message = bool;
         type Properties = Props;
 
-        fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-            props.lifecycle.borrow_mut().push("create".into());
-            if let Some(msg) = props.create_message {
-                link.send_message(msg);
+        fn create(ctx: &Context<Self>) -> Self {
+            ctx.props.lifecycle.borrow_mut().push("create".into());
+            if let Some(msg) = ctx.props.create_message {
+                ctx.send_message(msg);
             }
-            Comp { props, link }
+            Comp
         }
 
-        fn rendered(&mut self, first_render: bool) {
-            if let Some(msg) = self.props.rendered_message.borrow_mut().take() {
-                self.link.send_message(msg);
+        fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+            if let Some(msg) = ctx.props.rendered_message.borrow_mut().take() {
+                ctx.send_message(msg);
             }
-            self.props
+            ctx.props
                 .lifecycle
                 .borrow_mut()
                 .push(format!("rendered({})", first_render));
         }
 
-        fn update(&mut self, msg: Self::Message) -> ShouldRender {
-            if let Some(msg) = self.props.update_message.borrow_mut().take() {
-                self.link.send_message(msg);
+        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
+            if let Some(msg) = ctx.props.update_message.borrow_mut().take() {
+                ctx.send_message(msg);
             }
-            self.props
+            ctx.props
                 .lifecycle
                 .borrow_mut()
                 .push(format!("update({})", msg));
             msg
         }
 
-        fn change(&mut self, _: Self::Properties) -> ShouldRender {
-            self.props.lifecycle.borrow_mut().push("change".into());
+        fn changed(&mut self, ctx: &Context<Self>, _: &Self::Properties) -> ShouldRender {
+            ctx.props.lifecycle.borrow_mut().push("change".into());
             false
         }
 
-        fn view(&self) -> Html {
-            if let Some(msg) = self.props.view_message.borrow_mut().take() {
-                self.link.send_message(msg);
+        fn view(&self, ctx: &Context<Self>) -> Html {
+            if let Some(msg) = ctx.props.view_message.borrow_mut().take() {
+                ctx.send_message(msg);
             }
-            self.props.lifecycle.borrow_mut().push("view".into());
-            html! { <Legacy<Child> lifecycle=self.props.lifecycle.clone() /> }
+            ctx.props.lifecycle.borrow_mut().push("view".into());
+            html! { <Child lifecycle=ctx.props.lifecycle.clone() /> }
         }
-    }
 
-    impl Drop for Comp {
-        fn drop(&mut self) {
-            self.props.lifecycle.borrow_mut().push("drop".into());
+        fn destroy(&mut self, ctx: &Context<Self>) {
+            ctx.props.lifecycle.borrow_mut().push("destroy".into());
         }
     }
 
     fn test_lifecycle(props: Props, expected: &[String]) {
         let document = crate::utils::document();
         let lifecycle = props.lifecycle.clone();
-        let scope = Scope::<Legacy<Comp>>::new(None, Rc::new(props));
+        let context = Context::<Comp>::new(None, Rc::new(props));
         let el = document.create_element("div").unwrap();
 
         lifecycle.borrow_mut().clear();
-        scope.mount_in_place(el, NodeRef::default(), None, NodeRef::default());
+        context.mount_in_place(el, NodeRef::default(), None, NodeRef::default());
 
         assert_eq!(&lifecycle.borrow_mut().deref()[..], expected);
     }
