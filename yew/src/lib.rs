@@ -127,7 +127,6 @@ pub use yew_macro::html;
 ///
 /// struct List;
 /// impl Component for List {
-/// #   type Message = ();
 ///   type Properties = Props;
 ///   // ...
 /// #   fn create(ctx: &Context<Self>) -> Self { unimplemented!() }
@@ -137,7 +136,6 @@ pub use yew_macro::html;
 /// #[derive(PartialEq, Clone)]
 /// struct ListItem;
 /// impl Component for ListItem {
-/// #   type Message = ();
 /// #   type Properties = ();
 ///   // ...
 /// #   fn create(_: &Context<Self>) -> Self { Self }
@@ -215,7 +213,6 @@ pub use yew_macro::html_nested;
 ///
 /// struct Model(Props);
 /// impl Component for Model {
-/// #   type Message = ();
 ///     type Properties = Props;
 ///     // ...
 /// #   fn create(_: &Context<Self>) -> Self { unimplemented!() }

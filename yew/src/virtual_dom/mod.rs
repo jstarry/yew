@@ -623,12 +623,11 @@ mod tests {
 #[cfg(all(test, feature = "web_sys"))]
 mod layout_tests {
     use super::*;
-    use crate::component::{Component, AnyContext, Context};
+    use crate::component::{AnyContext, Component, Context};
     use crate::Html;
 
     struct Comp;
     impl Component for Comp {
-        type Message = ();
         type Properties = ();
 
         fn create(_: &Context<Self>) -> Self {

@@ -190,7 +190,6 @@ impl FetchService {
     ///# use yew::services::fetch::{Response, Request};
     ///# struct Comp;
     ///# impl Component for Comp {
-    ///#     type Message = Msg;type Properties = ();
     ///#     fn create(_: &Context<Self>) -> Self {unimplemented!()}
     ///#     fn view(&self, _: &Context<Self>) -> Html {unimplemented!()}
     ///# }
@@ -227,7 +226,6 @@ impl FetchService {
     ///# use serde_derive::Deserialize;
     ///# struct Comp;
     ///# impl Component for Comp {
-    ///#     type Message = Msg;type Properties = ();
     ///#     fn create(_: &Context<Self>) -> Self {unimplemented!()}
     ///#     fn view(&self, _: &Context<Self>) -> Html {unimplemented!()}
     ///# }

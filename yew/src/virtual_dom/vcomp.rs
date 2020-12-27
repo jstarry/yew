@@ -1,10 +1,7 @@
 //! This module contains the implementation of a virtual component (`VComp`).
 
 use super::{Key, Transformer, VDiff, VNode};
-use crate::component::{
-    context::{ComponentUpdate, ContextHandle},
-    AnyContext, Component, Context,
-};
+use crate::component::{context::ContextHandle, AnyContext, Component, Context};
 use crate::html::NodeRef;
 use crate::utils::document;
 use cfg_if::cfg_if;
@@ -184,11 +181,7 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
         next_sibling: NodeRef,
     ) {
         let context: Context<COMP> = context.to_any().downcast();
-        context.update(ComponentUpdate::Properties(
-            self.props,
-            node_ref,
-            next_sibling,
-        ));
+        context.reuse(self.props, node_ref, next_sibling);
     }
 }
 
@@ -328,7 +321,6 @@ mod tests {
     }
 
     impl Component for Comp {
-        type Message = ();
         type Properties = Props;
 
         fn create(_ctx: &Context<Self>) -> Self {
@@ -472,7 +464,6 @@ mod tests {
 
     pub struct List;
     impl Component for List {
-        type Message = ();
         type Properties = ListProps;
 
         fn create(_ctx: &Context<Self>) -> Self {
@@ -620,7 +611,6 @@ mod layout_tests {
     }
 
     impl<T: 'static> Component for Comp<T> {
-        type Message = ();
         type Properties = CompProps;
 
         fn create(_ctx: &Context<Self>) -> Self {

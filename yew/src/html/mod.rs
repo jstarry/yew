@@ -8,7 +8,7 @@ mod listener;
 pub use listener::*;
 pub use yew_macro::Properties;
 
-use crate::component::{self, Context};
+use crate::component::{self, Context, MessageHandler};
 use crate::virtual_dom::{VChild, VNode};
 use cfg_if::cfg_if;
 use cfg_match::cfg_match;
@@ -45,8 +45,14 @@ pub type ShouldRender = component::ShouldRender;
 pub struct Legacy<T: LegacyComponent>(T);
 
 #[allow(deprecated)]
+impl<T: LegacyComponent> MessageHandler<T::Message> for Legacy<T> {
+    fn handle(&mut self, _ctx: &Context<Self>, msg: T::Message) -> ShouldRender {
+        self.0.update(msg)
+    }
+}
+
+#[allow(deprecated)]
 impl<T: LegacyComponent> yew::component::Component for Legacy<T> {
-    type Message = T::Message;
     type Properties = T::Properties;
 
     fn create(ctx: &Scope<Self>) -> Self {
@@ -56,10 +62,6 @@ impl<T: LegacyComponent> yew::component::Component for Legacy<T> {
 
     fn changed(&mut self, _ctx: &Context<Self>, new_props: &Self::Properties) -> ShouldRender {
         self.0.change(new_props.clone())
-    }
-
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
-        self.0.update(msg)
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
@@ -101,7 +103,7 @@ pub trait LegacyComponent: Sized + 'static {
     ///#     prop: String,
     ///# }
     ///# impl LegacyComponent for Model {
-    ///#     type Message = ();type Properties = Props;
+    ///#     type Properties = Props;
     ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
     ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
     ///#     fn change(&mut self, _: Self::Properties) -> bool {unimplemented!()}
@@ -133,7 +135,7 @@ pub trait LegacyComponent: Sized + 'static {
     ///# use yew::{Html, LegacyComponent, ComponentLink, html, ShouldRender};
     ///# struct Model{props: ()};
     ///# impl LegacyComponent for Model {
-    ///#     type Message = ();type Properties = ();
+    ///#     type Properties = ();
     ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
     ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
     ///#     fn view(&self) -> Html {unimplemented!()}
@@ -164,7 +166,7 @@ pub trait LegacyComponent: Sized + 'static {
     ///# struct Model{props: ()};
     ///# impl Model { fn setup_element(&self) { } }
     ///# impl LegacyComponent for Model {
-    ///#     type Message = ();type Properties = ();
+    ///#     type Properties = ();
     ///#     fn create(props: Self::Properties,link: ComponentLink<Self>) -> Self {unimplemented!()}
     ///#     fn update(&mut self,msg: Self::Message) -> bool {unimplemented!()}
     ///#     fn view(&self) -> Html {unimplemented!()}
@@ -199,7 +201,6 @@ pub type Html = VNode;
 ///# }
 ///# struct Wrapper;
 ///# impl Component for Wrapper{
-///#     type Message = ();
 ///#     type Properties = WrapperProps;
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///#     // This is not a valid implementation.  This is done for space convenience.
@@ -228,7 +229,6 @@ pub type Html = VNode;
 ///# struct Wrapper;
 /// impl Component for Wrapper {
 ///     // ...
-///#     type Message = ();
 ///#     type Properties = WrapperProps;
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -257,7 +257,6 @@ pub type Children = ChildrenRenderer<Html>;
 ///# }
 ///# struct List;
 ///# impl Component for List {
-///#     type Message = ();
 ///#     type Properties = ListProps;
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}
@@ -268,7 +267,6 @@ pub type Children = ChildrenRenderer<Html>;
 ///# }
 ///# struct ListItem;
 ///# impl Component for ListItem {
-///#     type Message = ();
 ///#     type Properties = ListItemProps;
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}
@@ -298,7 +296,6 @@ pub type Children = ChildrenRenderer<Html>;
 ///
 ///# struct List {props: ListProps};
 /// impl Component for List {
-///#     type Message = ();
 ///#     type Properties = ListProps;
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///     // ...
@@ -320,7 +317,6 @@ pub type Children = ChildrenRenderer<Html>;
 ///#
 ///# struct ListItem;
 ///# impl Component for ListItem {
-///#     type Message = ();
 ///#     type Properties = ListItemProps;
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}
@@ -406,7 +402,6 @@ impl<T> IntoIterator for ChildrenRenderer<T> {
 /// }
 ///
 /// impl Component for Input {
-///     type Message = ();
 ///     type Properties = ();
 ///
 ///     fn create(_: &Context<Self>) -> Self {
@@ -510,10 +505,18 @@ impl NodeRef {
     since = "0.18.0",
     note = "Please switch to the yew::component::context::SendAsMessage trait"
 )]
-pub trait SendAsMessage<COMP: component::Component>: component::context::SendAsMessage<COMP> {}
+pub trait SendAsMessage<COMP: component::Component>:
+    component::context::SendAsMessage<COMP>
+{
+}
 
 #[allow(deprecated)]
-impl<T, COMP> SendAsMessage<COMP> for T where T: component::context::SendAsMessage<COMP>, COMP: component::Component {}
+impl<T, COMP> SendAsMessage<COMP> for T
+where
+    T: component::context::SendAsMessage<COMP>,
+    COMP: component::Component,
+{
+}
 
 /// Trait for building properties for a component.
 #[deprecated(
@@ -523,9 +526,7 @@ impl<T, COMP> SendAsMessage<COMP> for T where T: component::context::SendAsMessa
 pub trait Properties: component::Properties {}
 
 #[allow(deprecated)]
-impl<T> Properties for T where T: component::Properties {
-}
-
+impl<T> Properties for T where T: component::Properties {}
 
 /// Link to `LegacyComponent` context for creating callbacks.
 #[deprecated(

@@ -1,4 +1,4 @@
-use crate::component::Component;
+use crate::component::{Component, MessageHandler, ShouldRender};
 use crate::scheduler::{scheduler, ComponentRunnableType, Runnable, Shared};
 use crate::virtual_dom::{VDiff, VNode};
 use crate::{Callback, NodeRef};
@@ -14,18 +14,6 @@ cfg_if! {
     } else if #[cfg(feature = "web_sys")] {
         use web_sys::Element;
     }
-}
-
-/// Updates for a `Component` instance. Used by context sender.
-pub(crate) enum ComponentUpdate<COMP: Component> {
-    /// First update
-    First,
-    /// Wraps messages for a component.
-    Message(COMP::Message),
-    /// Wraps batch of messages for a component.
-    MessageBatch(Vec<COMP::Message>),
-    /// Wraps properties, node ref, and next sibling for a component.
-    Properties(Rc<COMP::Properties>, NodeRef, NodeRef),
 }
 
 /// Untyped context used for accessing parent context
@@ -185,14 +173,35 @@ impl<COMP: Component> Context<COMP> {
                 context: self.clone(),
             }),
         );
-        self.update(ComponentUpdate::First);
+        self.update(Box::new(|_| true));
         drop(lock);
         scheduler.start();
         self
     }
 
+    pub(crate) fn reuse(
+        &self,
+        props: Rc<COMP::Properties>,
+        node_ref: NodeRef,
+        next_sibling: NodeRef,
+    ) {
+        self.update(Box::new(move |mut state| -> ShouldRender {
+            // When components are updated, a new node ref could have been passed in
+            state.node_ref = node_ref;
+            // When components are updated, their siblings were likely also updated
+            state.next_sibling = next_sibling;
+            let should_render = if *state.context.props != *props {
+                state.component.changed(&state.context, &props)
+            } else {
+                false
+            };
+            state.context.props = props;
+            should_render
+        }));
+    }
+
     /// Schedules a task to send an update to a component
-    pub(crate) fn update(&self, update: ComponentUpdate<COMP>) {
+    fn update(&self, update: Box<dyn FnOnce(&mut ComponentState<COMP>) -> ShouldRender>) {
         let update = UpdateComponent {
             state: self.state.clone(),
             update,
@@ -204,11 +213,15 @@ impl<COMP: Component> Context<COMP> {
     ///
     /// Please be aware that currently this method synchronously
     /// schedules a call to the [Component](Component) interface.
-    pub fn send_message<T>(&self, msg: T)
+    pub fn send_message<MSG: 'static, T>(&self, msg: T)
     where
-        T: Into<COMP::Message>,
+        COMP: MessageHandler<MSG>,
+        T: Into<MSG>,
     {
-        self.update(ComponentUpdate::Message(msg.into()));
+        let message = msg.into();
+        self.update(Box::new(move |state| -> ShouldRender {
+            state.component.handle(&state.context, message)
+        }));
     }
 
     /// Send a batch of messages to the component.
@@ -219,14 +232,21 @@ impl<COMP: Component> Context<COMP> {
     ///
     /// Please be aware that currently this method synchronously
     /// schedules calls to the [Component](Component) interface.
-    pub fn send_message_batch(&self, messages: Vec<COMP::Message>) {
+    pub fn send_message_batch<MSG: 'static>(&self, messages: Vec<MSG>)
+    where
+        COMP: MessageHandler<MSG>,
+    {
         // There is no reason to schedule empty batches.
         // This check is especially handy for the batch_callback method.
         if messages.is_empty() {
             return;
         }
 
-        self.update(ComponentUpdate::MessageBatch(messages));
+        self.update(Box::new(move |state| -> ShouldRender {
+            messages.into_iter().fold(false, |acc, msg| {
+                state.component.handle(&state.context, msg) || acc
+            })
+        }));
     }
 
     /// Creates a `Callback` which will send a message to the linked
@@ -235,9 +255,10 @@ impl<COMP: Component> Context<COMP> {
     /// Please be aware that currently the result of this callback
     /// synchronously schedules a call to the [Component](Component)
     /// interface.
-    pub fn callback<F, IN, M>(&self, function: F) -> Callback<IN>
+    pub fn callback<F, IN, M, N: 'static>(&self, function: F) -> Callback<IN>
     where
-        M: Into<COMP::Message>,
+        M: Into<N>,
+        COMP: MessageHandler<N>,
         F: Fn(IN) -> M + 'static,
     {
         let context = self.clone();
@@ -254,9 +275,10 @@ impl<COMP: Component> Context<COMP> {
     /// Please be aware that currently the result of this callback
     /// will synchronously schedule calls to the
     /// [Component](Component) interface.
-    pub fn callback_once<F, IN, M>(&self, function: F) -> Callback<IN>
+    pub fn callback_once<F, IN, M, N: 'static>(&self, function: F) -> Callback<IN>
     where
-        M: Into<COMP::Message>,
+        M: Into<N>,
+        COMP: MessageHandler<N>,
         F: FnOnce(IN) -> M + 'static,
     {
         let context = self.clone();
@@ -332,9 +354,9 @@ pub trait SendAsMessage<COMP: Component> {
     fn send(self, context: &Context<COMP>);
 }
 
-impl<COMP> SendAsMessage<COMP> for Option<COMP::Message>
+impl<COMP, MSG: 'static> SendAsMessage<COMP> for Option<MSG>
 where
-    COMP: Component,
+    COMP: Component + MessageHandler<MSG>,
 {
     fn send(self, context: &Context<COMP>) {
         if let Some(msg) = self {
@@ -343,9 +365,9 @@ where
     }
 }
 
-impl<COMP> SendAsMessage<COMP> for Vec<COMP::Message>
+impl<COMP, MSG: 'static> SendAsMessage<COMP> for Vec<MSG>
 where
-    COMP: Component,
+    COMP: Component + MessageHandler<MSG>,
 {
     fn send(self, context: &Context<COMP>) {
         context.send_message_batch(self);
@@ -362,7 +384,7 @@ struct ComponentState<COMP: Component> {
     last_root: Option<VNode>,
     new_root: Option<VNode>,
     has_rendered: bool,
-    pending_updates: Vec<Box<UpdateComponent<COMP>>>,
+    pending_updates: Vec<Box<dyn Runnable>>,
 }
 
 impl<COMP: Component> ComponentState<COMP> {
@@ -430,7 +452,7 @@ where
     COMP: Component,
 {
     state: Shared<Option<ComponentState<COMP>>>,
-    update: ComponentUpdate<COMP>,
+    update: Box<dyn FnOnce(&mut ComponentState<COMP>) -> ShouldRender>,
 }
 
 impl<COMP> Runnable for UpdateComponent<COMP>
@@ -445,41 +467,11 @@ where
                 return;
             }
 
-            let first_update = matches!(self.update, ComponentUpdate::First);
-
-            let should_update = match self.update {
-                ComponentUpdate::First => true,
-                ComponentUpdate::Message(message) => {
-                    state.component.update(&state.context, message)
-                }
-                ComponentUpdate::MessageBatch(messages) => {
-                    messages.into_iter().fold(false, |acc, msg| {
-                        state.component.update(&state.context, msg) || acc
-                    })
-                }
-                ComponentUpdate::Properties(props, node_ref, next_sibling) => {
-                    // When components are updated, a new node ref could have been passed in
-                    state.node_ref = node_ref;
-                    // When components are updated, their siblings were likely also updated
-                    state.next_sibling = next_sibling;
-                    let should_render = if *state.context.props != *props {
-                        state.component.changed(&state.context, &props)
-                    } else {
-                        false
-                    };
-                    state.context.props = props;
-                    should_render
-                }
-            };
-
-            if should_update {
+            if (self.update)(state) {
                 state.new_root = Some(state.component.view(&state.context));
                 scheduler().push_comp(
                     ComponentRunnableType::Render,
-                    Box::new(RenderComponent {
-                        state: self.state,
-                        first_render: first_update,
-                    }),
+                    Box::new(RenderComponent { state: self.state }),
                 );
             };
         };
@@ -492,7 +484,6 @@ where
     COMP: Component,
 {
     state: Shared<Option<ComponentState<COMP>>>,
-    first_render: bool,
 }
 
 impl<COMP> Runnable for RenderComponent<COMP>
@@ -502,11 +493,6 @@ where
     fn run(self: Box<Self>) {
         let state_clone = self.state.clone();
         if let Some(mut state) = self.state.borrow_mut().as_mut() {
-            // Skip render if we haven't seen the "first render" yet
-            if !self.first_render && state.last_root.is_none() {
-                return;
-            }
-
             if let Some(mut new_root) = state.new_root.take() {
                 let last_root = state.last_root.take().or_else(|| state.placeholder.take());
                 let parent_context = state.context.clone().into();
@@ -516,10 +502,7 @@ where
                 state.last_root = Some(new_root);
                 scheduler().push_comp(
                     ComponentRunnableType::Rendered,
-                    Box::new(RenderedComponent {
-                        state: state_clone,
-                        first_render: self.first_render,
-                    }),
+                    Box::new(RenderedComponent { state: state_clone }),
                 );
             }
         }
@@ -532,7 +515,6 @@ where
     COMP: Component,
 {
     state: Shared<Option<ComponentState<COMP>>>,
-    first_render: bool,
 }
 
 impl<COMP> Runnable for RenderedComponent<COMP>
@@ -541,13 +523,9 @@ where
 {
     fn run(self: Box<Self>) {
         if let Some(mut state) = self.state.borrow_mut().as_mut() {
-            // Don't call rendered if we haven't seen the "first render" yet
-            if !self.first_render && !state.has_rendered {
-                return;
-            }
-
+            let first_render = !state.has_rendered;
             state.has_rendered = true;
-            state.component.rendered(&state.context, self.first_render);
+            state.component.rendered(&state.context, first_render);
             if !state.pending_updates.is_empty() {
                 scheduler().push_comp_update_batch(
                     state
@@ -588,9 +566,9 @@ mod tests {
     extern crate self as yew;
 
     use super::*;
+    use crate::component::{Component, Context, Properties, ShouldRender};
     use crate::html;
     use crate::html::Html;
-    use crate::component::{Component, Context, Properties, ShouldRender};
 
     use std::ops::Deref;
     #[cfg(feature = "wasm_test")]
@@ -606,7 +584,6 @@ mod tests {
 
     struct Child;
     impl Component for Child {
-        type Message = ();
         type Properties = ChildProps;
 
         fn create(_: &Context<Self>) -> Self {
@@ -635,8 +612,20 @@ mod tests {
     }
 
     struct Comp;
+    impl MessageHandler<bool> for Comp {
+        fn handle(&mut self, ctx: &Context<Self>, msg: bool) -> ShouldRender {
+            if let Some(msg) = ctx.props.update_message.borrow_mut().take() {
+                ctx.send_message(msg);
+            }
+            ctx.props
+                .lifecycle
+                .borrow_mut()
+                .push(format!("update({})", msg));
+            msg
+        }
+    }
+
     impl Component for Comp {
-        type Message = bool;
         type Properties = Props;
 
         fn create(ctx: &Context<Self>) -> Self {
@@ -655,17 +644,6 @@ mod tests {
                 .lifecycle
                 .borrow_mut()
                 .push(format!("rendered({})", first_render));
-        }
-
-        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
-            if let Some(msg) = ctx.props.update_message.borrow_mut().take() {
-                ctx.send_message(msg);
-            }
-            ctx.props
-                .lifecycle
-                .borrow_mut()
-                .push(format!("update({})", msg));
-            msg
         }
 
         fn changed(&mut self, ctx: &Context<Self>, _: &Self::Properties) -> ShouldRender {

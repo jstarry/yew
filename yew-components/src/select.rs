@@ -24,7 +24,7 @@ use yew::{html, Component, Context, Properties};
 /// }
 ///# struct Model;
 ///# impl Component for Model {
-///#     type Message = ();type Properties = ();
+///#     type Properties = ();
 ///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
 ///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}}
 /// impl fmt::Display for Scene {

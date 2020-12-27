@@ -2,11 +2,13 @@
 
 #![allow(missing_docs)]
 
-mod properties;
 pub(crate) mod context;
+mod handler;
+mod properties;
 
-pub use properties::Properties;
 pub use context::{AnyContext, Context};
+pub use handler::MessageHandler;
+pub use properties::Properties;
 
 use crate::html::Html;
 
@@ -15,13 +17,9 @@ pub type ShouldRender = bool;
 
 /// Yew component
 pub trait Component: Sized + 'static {
-    type Message: 'static;
     type Properties: Properties;
 
     fn create(ctx: &Context<Self>) -> Self;
-    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> ShouldRender {
-        false
-    }
     fn changed(&mut self, _ctx: &Context<Self>, _new_props: &Self::Properties) -> ShouldRender {
         true
     }
