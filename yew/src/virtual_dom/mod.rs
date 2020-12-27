@@ -13,7 +13,8 @@ pub mod vtag;
 #[doc(hidden)]
 pub mod vtext;
 
-use crate::html::{AnyScope, NodeRef};
+use crate::component::AnyContext;
+use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use indexmap::IndexMap;
 use std::{borrow::Cow, collections::HashMap, fmt, hint::unreachable_unchecked, iter, mem, rc::Rc};
@@ -334,7 +335,7 @@ pub(crate) trait VDiff {
     /// the actual DOM representation.
     ///
     /// Parameters:
-    /// - `parent_scope`: the parent `Scope` used for passing messages to the
+    /// - `parent_context`: the parent `Context` used for passing messages to the
     ///   parent `Component`.
     /// - `parent`: the parent node in the DOM.
     /// - `next_sibling`: the next sibling, used to efficiently find where to
@@ -354,7 +355,7 @@ pub(crate) trait VDiff {
     /// `Node` directly (always removes the `Node` that exists).
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
+        parent_context: &AnyContext,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -392,8 +393,8 @@ pub trait Transformer<FROM, TO> {
 #[cfg(all(test, feature = "web_sys"))]
 mod layout_tests {
     use super::*;
-    use crate::html::{AnyScope, Scope};
-    use crate::{Component, Context, Html};
+    use crate::component::{Component, AnyContext, Context};
+    use crate::Html;
 
     struct Comp;
     impl Component for Comp {
@@ -417,7 +418,7 @@ mod layout_tests {
 
     pub(crate) fn diff_layouts(layouts: Vec<TestLayout<'_>>) {
         let document = crate::utils::document();
-        let parent_scope: AnyScope = Scope::<Comp>::new(None, Rc::new(())).into();
+        let parent_context: AnyContext = Context::<Comp>::new(None, Rc::new(())).into();
         let parent_element = document.create_element("div").unwrap();
         let parent_node: Node = parent_element.clone().into();
         let end_node = document.create_text_node("END");
@@ -431,7 +432,7 @@ mod layout_tests {
             let mut node = layout.node.clone();
             #[cfg(feature = "wasm_test")]
             wasm_bindgen_test::console_log!("Independently apply layout '{}'", layout.name);
-            node.apply(&parent_scope, &parent_element, next_sibling.clone(), None);
+            node.apply(&parent_context, &parent_element, next_sibling.clone(), None);
             assert_eq!(
                 parent_element.inner_html(),
                 format!("{}END", layout.expected),
@@ -444,7 +445,7 @@ mod layout_tests {
             #[cfg(feature = "wasm_test")]
             wasm_bindgen_test::console_log!("Independently reapply layout '{}'", layout.name);
             node_clone.apply(
-                &parent_scope,
+                &parent_context,
                 &parent_element,
                 next_sibling.clone(),
                 Some(node),
@@ -458,7 +459,7 @@ mod layout_tests {
 
             // Detach
             empty_node.clone().apply(
-                &parent_scope,
+                &parent_context,
                 &parent_element,
                 next_sibling.clone(),
                 Some(node_clone),
@@ -478,7 +479,7 @@ mod layout_tests {
             #[cfg(feature = "wasm_test")]
             wasm_bindgen_test::console_log!("Sequentially apply layout '{}'", layout.name);
             next_node.apply(
-                &parent_scope,
+                &parent_context,
                 &parent_element,
                 next_sibling.clone(),
                 ancestor,
@@ -498,7 +499,7 @@ mod layout_tests {
             #[cfg(feature = "wasm_test")]
             wasm_bindgen_test::console_log!("Sequentially detach layout '{}'", layout.name);
             next_node.apply(
-                &parent_scope,
+                &parent_context,
                 &parent_element,
                 next_sibling.clone(),
                 ancestor,
@@ -513,7 +514,7 @@ mod layout_tests {
         }
 
         // Detach last layout
-        empty_node.apply(&parent_scope, &parent_element, next_sibling, ancestor);
+        empty_node.apply(&parent_context, &parent_element, next_sibling, ancestor);
         assert_eq!(
             parent_element.inner_html(),
             "END",

@@ -1,8 +1,8 @@
 //! This module contains the implementation of abstract virtual node.
 
 use super::{Key, VChild, VComp, VDiff, VList, VTag, VText};
-use crate::component::Component;
-use crate::html::{AnyScope, NodeRef};
+use crate::component::{Component, AnyContext};
+use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use cfg_match::cfg_match;
 use log::warn;
@@ -106,21 +106,21 @@ impl VDiff for VNode {
 
     fn apply(
         &mut self,
-        parent_scope: &AnyScope,
+        parent_context: &AnyContext,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
     ) -> NodeRef {
         match *self {
-            VNode::VTag(ref mut vtag) => vtag.apply(parent_scope, parent, next_sibling, ancestor),
+            VNode::VTag(ref mut vtag) => vtag.apply(parent_context, parent, next_sibling, ancestor),
             VNode::VText(ref mut vtext) => {
-                vtext.apply(parent_scope, parent, next_sibling, ancestor)
+                vtext.apply(parent_context, parent, next_sibling, ancestor)
             }
             VNode::VComp(ref mut vcomp) => {
-                vcomp.apply(parent_scope, parent, next_sibling, ancestor)
+                vcomp.apply(parent_context, parent, next_sibling, ancestor)
             }
             VNode::VList(ref mut vlist) => {
-                vlist.apply(parent_scope, parent, next_sibling, ancestor)
+                vlist.apply(parent_context, parent, next_sibling, ancestor)
             }
             VNode::VRef(ref mut node) => {
                 if let Some(mut ancestor) = ancestor {

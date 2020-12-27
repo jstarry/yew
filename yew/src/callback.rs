@@ -1,4 +1,4 @@
-//! This module contains data types for interacting with `Scope`s.
+//! This module contains data types for interacting with `Callback`s.
 
 use std::cell::RefCell;
 use std::fmt;

@@ -1,14 +1,17 @@
+//! Component trait and related types
+
 #![allow(missing_docs)]
 
-//! Components wrapped with context including properties, state, and link
+mod properties;
+pub(crate) mod context;
 
-use crate::html::{Html, Properties, Scope, ShouldRender};
+pub use properties::Properties;
+pub use context::{AnyContext, Context};
 
-/// Context
-pub type Context<T> = Scope<T>;
+use crate::html::Html;
 
-// Link to component scope
-// pub type Link<T> = Scope<T>;
+/// This type indicates that component should be rendered again.
+pub type ShouldRender = bool;
 
 /// Yew component
 pub trait Component: Sized + 'static {

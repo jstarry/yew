@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 use std::{iter, mem};
 use yew::html;
-use yew::html::{AnyScope, Scope};
+use yew::html::{AnyContext, Scope};
 use yew::{Children, Component, Context, Html, Properties};
 
 type ConsumerCallback<T> = Box<dyn Fn(Rc<T>)>;
@@ -84,13 +84,13 @@ impl<T: PartialEq + 'static> Component for ContextProvider<T> {
 }
 
 fn find_context_provider_scope<T: PartialEq + 'static>(
-    scope: &AnyScope,
+    scope: &AnyContext,
 ) -> Option<Scope<ContextProvider<T>>> {
     let expected_type_id = TypeId::of::<ContextProvider<T>>();
     iter::successors(Some(scope), |scope| scope.get_parent())
         .filter(|scope| scope.get_type_id() == &expected_type_id)
         .cloned()
-        .map(AnyScope::downcast::<ContextProvider<T>>)
+        .map(AnyContext::downcast::<ContextProvider<T>>)
         .next()
 }
 

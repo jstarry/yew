@@ -1,4 +1,4 @@
-#![allow(clippy::needless_doctest_main, deprecated)]
+#![allow(clippy::needless_doctest_main)]
 #![doc(html_logo_url = "https://static.yew.rs/logo.svg")]
 
 //! # Yew Framework - API Documentation
@@ -337,7 +337,7 @@ pub fn run_loop() {
 /// Starts an app mounted to a body of the document.
 pub fn start_app<COMP>()
 where
-    COMP: Component,
+    COMP: component::Component,
     COMP::Properties: Default,
 {
     initialize();
@@ -348,7 +348,7 @@ where
 /// Starts an app mounted to a body of the document.
 pub fn start_app_with_props<COMP>(props: COMP::Properties)
 where
-    COMP: Component,
+    COMP: component::Component,
 {
     initialize();
     App::<COMP>::new().mount_to_body_with_props(props);
@@ -368,8 +368,8 @@ pub mod prelude {
     pub use crate::agent::{Bridge, Bridged, Dispatched, Threaded};
     pub use crate::app::App;
     pub use crate::callback::Callback;
-    pub use crate::component::{Component, Context};
     pub use crate::events::*;
+    #[allow(deprecated)]
     pub use crate::html::{
         Children, ChildrenWithProps, Classes, ComponentLink, Html, Legacy, LegacyComponent, NodeRef,
         Properties, ShouldRender,
