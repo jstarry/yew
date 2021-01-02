@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use std::marker::PhantomData;
-use yew::html::ChildrenRenderer;
+use yew::component::ChildrenRenderer;
 use yew::prelude::*;
 use yew::virtual_dom::{VChild, VNode};
 

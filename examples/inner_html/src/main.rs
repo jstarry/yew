@@ -1,7 +1,5 @@
-#![allow(deprecated)]
-
 use web_sys::console;
-use yew::{ComponentLink, Html, Legacy, LegacyComponent, ShouldRender};
+use yew::{Component, Context, Html};
 
 const HTML: &str = include_str!("document.html");
 
@@ -9,23 +7,15 @@ pub struct Model {
     pub value: i64,
 }
 
-impl LegacyComponent for Model {
+impl Component for Model {
     type Message = ();
     type Properties = ();
 
-    fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self { value: 0 }
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        unimplemented!()
-    }
-
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         let div = yew::utils::document().create_element("div").unwrap();
         div.set_inner_html(HTML);
         // See <https://github.com/yewstack/yew/issues/1546>
@@ -36,5 +26,5 @@ impl LegacyComponent for Model {
 }
 
 fn main() {
-    yew::start_app::<Legacy<Model>>();
+    yew::start_app::<Model>();
 }

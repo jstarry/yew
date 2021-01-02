@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use yew::html::ChildrenRenderer;
+use yew::component::ChildrenRenderer;
 use yew::prelude::*;
 
 #[derive(Clone, Properties, PartialEq)]

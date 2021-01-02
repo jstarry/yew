@@ -3,8 +3,8 @@
 use std::marker::PhantomData;
 use web_sys::HtmlSelectElement;
 use yew::callback::Callback;
-use yew::html::{ChangeData, Html, NodeRef, ShouldRender};
-use yew::{html, Component, Context, Properties};
+use yew::html::{ChangeData, Html, NodeRef};
+use yew::{html, Component, Context, Properties, ShouldRender};
 
 /// An alternative to the HTML `<select>` tag.
 ///

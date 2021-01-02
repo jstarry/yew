@@ -1,12 +1,12 @@
 // Naming this file use_context could be confusing. Not least to the IDE.
-use super::{get_current_scope, use_hook, Hook};
+use super::{get_current_context, use_hook, Hook};
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 use std::{iter, mem};
 use yew::html;
-use yew::html::{AnyContext, Scope};
-use yew::{Children, Component, Context, Html, Properties};
+use yew::component::AnyContext;
+use yew::{Context, Children, Component, Html, Properties};
 
 type ConsumerCallback<T> = Box<dyn Fn(Rc<T>)>;
 
@@ -83,9 +83,9 @@ impl<T: PartialEq + 'static> Component for ContextProvider<T> {
     }
 }
 
-fn find_context_provider_scope<T: PartialEq + 'static>(
+fn find_context_provider_context<T: PartialEq + 'static>(
     scope: &AnyContext,
-) -> Option<Scope<ContextProvider<T>>> {
+) -> Option<Context<ContextProvider<T>>> {
     let expected_type_id = TypeId::of::<ContextProvider<T>>();
     iter::successors(Some(scope), |scope| scope.get_parent())
         .filter(|scope| scope.get_type_id() == &expected_type_id)
@@ -124,7 +124,7 @@ fn find_context_provider_scope<T: PartialEq + 'static>(
 /// ```
 pub fn use_context<T: PartialEq + 'static>() -> Option<Rc<T>> {
     struct UseContextState<T2: PartialEq + 'static> {
-        provider_scope: Option<Scope<ContextProvider<T2>>>,
+        provider_scope: Option<Context<ContextProvider<T2>>>,
         current_context: Option<Rc<T2>>,
         callback: Option<Rc<ConsumerCallback<T2>>>,
     }
@@ -136,7 +136,7 @@ pub fn use_context<T: PartialEq + 'static>() -> Option<Rc<T>> {
         }
     }
 
-    let scope = get_current_scope()
+    let scope = get_current_context()
         .expect("No current Scope. `use_context` can only be called inside function components");
 
     use_hook(
@@ -157,7 +157,7 @@ pub fn use_context<T: PartialEq + 'static>() -> Option<Rc<T>> {
             state.current_context.clone()
         },
         move || {
-            let provider_scope = find_context_provider_scope::<T>(&scope);
+            let provider_scope = find_context_provider_context::<T>(&scope);
             let current_context = provider_scope
                 .as_ref()
                 .map(|scope| Rc::clone(&scope.props.context));

@@ -1,11 +1,10 @@
-#![allow(deprecated)]
-
 use anyhow::Error;
 use serde_derive::{Deserialize, Serialize};
+use yew::component::{Component, Context};
 use yew::format::{Json, Nothing, Toml};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
-use yew::{html, ComponentLink, Html, Legacy, LegacyComponent, ShouldRender};
+use yew::{html, Html, ShouldRender};
 
 type AsBinary = bool;
 
@@ -54,7 +53,6 @@ pub struct WsResponse {
 }
 
 pub struct Model {
-    link: ComponentLink<Model>,
     fetching: bool,
     data: Option<u32>,
     ft: Option<FetchTask>,
@@ -74,8 +72,8 @@ impl Model {
         }
     }
 
-    fn fetch_json(&mut self, binary: AsBinary) -> yew::services::fetch::FetchTask {
-        let callback = self.link.batch_callback(
+    fn fetch_json(ctx: &Context<Self>, binary: AsBinary) -> yew::services::fetch::FetchTask {
+        let callback = ctx.batch_callback(
             move |response: Response<Json<Result<DataFromFile, Error>>>| {
                 let (meta, Json(data)) = response.into_parts();
                 println!("META: {:?}, {:?}", meta, data);
@@ -94,8 +92,8 @@ impl Model {
         }
     }
 
-    pub fn fetch_toml(&mut self, binary: AsBinary) -> yew::services::fetch::FetchTask {
-        let callback = self.link.batch_callback(
+    pub fn fetch_toml(ctx: &Context<Self>, binary: AsBinary) -> yew::services::fetch::FetchTask {
+        let callback = ctx.batch_callback(
             move |response: Response<Toml<Result<DataFromFile, Error>>>| {
                 let (meta, Toml(data)) = response.into_parts();
                 println!("META: {:?}, {:?}", meta, data);
@@ -115,13 +113,12 @@ impl Model {
     }
 }
 
-impl LegacyComponent for Model {
+impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            link,
             fetching: false,
             data: None,
             ft: None,
@@ -129,21 +126,21 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::FetchData(format, binary) => {
                 self.fetching = true;
                 let task = match format {
-                    Format::Json => self.fetch_json(binary),
-                    Format::Toml => self.fetch_toml(binary),
+                    Format::Json => Self::fetch_json(ctx, binary),
+                    Format::Toml => Self::fetch_toml(ctx, binary),
                 };
                 self.ft = Some(task);
                 true
             }
             Msg::WsAction(action) => match action {
                 WsAction::Connect => {
-                    let callback = self.link.callback(|Json(data)| Msg::WsReady(data));
-                    let notification = self.link.batch_callback(|status| match status {
+                    let callback = ctx.callback(|Json(data)| Msg::WsReady(data));
+                    let notification = ctx.batch_callback(|status| match status {
                         WebSocketStatus::Opened => None,
                         WebSocketStatus::Closed | WebSocketStatus::Error => {
                             Some(WsAction::Lost.into())
@@ -185,38 +182,34 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn change(&mut self, _: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div>
                 <nav class="menu">
-                    <button onclick=self.link.callback(|_| Msg::FetchData(Format::Json, false))>
+                    <button onclick=ctx.callback(|_| Msg::FetchData(Format::Json, false))>
                         { "Fetch Data" }
                     </button>
-                    <button onclick=self.link.callback(|_| Msg::FetchData(Format::Json, true))>
+                    <button onclick=ctx.callback(|_| Msg::FetchData(Format::Json, true))>
                         { "Fetch Data [binary]" }
                     </button>
-                    <button onclick=self.link.callback(|_| Msg::FetchData(Format::Toml, false))>
+                    <button onclick=ctx.callback(|_| Msg::FetchData(Format::Toml, false))>
                         { "Fetch Data [toml]" }
                     </button>
                     { self.view_data() }
                     <button disabled=self.ws.is_some()
-                            onclick=self.link.callback(|_| WsAction::Connect)>
+                            onclick=ctx.callback(|_| WsAction::Connect)>
                         { "Connect To WebSocket" }
                     </button>
                     <button disabled=self.ws.is_none()
-                            onclick=self.link.callback(|_| WsAction::SendData(false))>
+                            onclick=ctx.callback(|_| WsAction::SendData(false))>
                         { "Send To WebSocket" }
                     </button>
                     <button disabled=self.ws.is_none()
-                            onclick=self.link.callback(|_| WsAction::SendData(true))>
+                            onclick=ctx.callback(|_| WsAction::SendData(true))>
                         { "Send To WebSocket [binary]" }
                     </button>
                     <button disabled=self.ws.is_none()
-                            onclick=self.link.callback(|_| WsAction::Disconnect)>
+                            onclick=ctx.callback(|_| WsAction::Disconnect)>
                         { "Close WebSocket connection" }
                     </button>
                 </nav>
@@ -226,5 +219,5 @@ impl LegacyComponent for Model {
 }
 
 fn main() {
-    yew::start_app::<Legacy<Model>>();
+    yew::start_app::<Model>();
 }

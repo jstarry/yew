@@ -1,7 +1,6 @@
-#![allow(deprecated)]
-
+use yew::component::{Component, Context};
 use yew::services::reader::{File, FileChunk, FileData, ReaderService, ReaderTask};
-use yew::{html, ChangeData, ComponentLink, Html, Legacy, LegacyComponent, ShouldRender};
+use yew::{html, ChangeData, Html, ShouldRender};
 
 type Chunks = bool;
 
@@ -13,26 +12,24 @@ pub enum Msg {
 }
 
 pub struct Model {
-    link: ComponentLink<Model>,
     tasks: Vec<ReaderTask>,
     files: Vec<String>,
     by_chunks: bool,
 }
 
-impl LegacyComponent for Model {
+impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            link,
             tasks: vec![],
             files: vec![],
             by_chunks: false,
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::Loaded(file) => {
                 let info = format!("file: {:?}", file);
@@ -48,10 +45,10 @@ impl LegacyComponent for Model {
                 for file in files.into_iter() {
                     let task = {
                         if chunks {
-                            let callback = self.link.callback(Msg::Chunk);
+                            let callback = ctx.callback(Msg::Chunk);
                             ReaderService::read_file_by_chunks(file, callback, 10).unwrap()
                         } else {
-                            let callback = self.link.callback(Msg::Loaded);
+                            let callback = ctx.callback(Msg::Loaded);
                             ReaderService::read_file(file, callback).unwrap()
                         }
                     };
@@ -67,17 +64,13 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let flag = self.by_chunks;
         html! {
             <div>
                 <div>
                     <p>{ "Choose a file to upload to see the uploaded bytes" }</p>
-                    <input type="file" multiple=true onchange=self.link.callback(move |value| {
+                    <input type="file" multiple=true onchange=ctx.callback(move |value| {
                             let mut result = Vec::new();
                             if let ChangeData::Files(files) = value {
                                 let files = js_sys::try_iter(&files)
@@ -92,7 +85,7 @@ impl LegacyComponent for Model {
                 </div>
                 <div>
                     <label>{ "By chunks" }</label>
-                    <input type="checkbox" checked=flag onclick=self.link.callback(|_| Msg::ToggleByChunks) />
+                    <input type="checkbox" checked=flag onclick=ctx.callback(|_| Msg::ToggleByChunks) />
                 </div>
                 <ul>
                     { for self.files.iter().map(|f| Self::view_file(f)) }
@@ -111,5 +104,5 @@ impl Model {
 }
 
 fn main() {
-    yew::start_app::<Legacy<Model>>();
+    yew::start_app::<Model>();
 }

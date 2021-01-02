@@ -1,9 +1,6 @@
-#![allow(deprecated)]
-
 use std::cell::Cell;
-use yew::{
-    html, Callback, ComponentLink, Html, InputData, LegacyComponent, Properties, ShouldRender,
-};
+use yew::component::{Component, Context};
+use yew::{html, Callback, Html, InputData, Properties};
 
 thread_local! {
     static SLIDER_ID: Cell<usize> = Cell::default();
@@ -29,35 +26,20 @@ pub struct Props {
 }
 
 pub struct Slider {
-    props: Props,
     id: usize,
 }
 
-impl LegacyComponent for Slider {
+impl Component for Slider {
     type Message = ();
     type Properties = Props;
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            props,
             id: next_slider_id(),
         }
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        unimplemented!()
-    }
-
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        if self.props != props {
-            self.props = props;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let Props {
             label,
             value,
@@ -67,7 +49,7 @@ impl LegacyComponent for Slider {
             min,
             max,
             step,
-        } = self.props;
+        } = *ctx.props;
 
         let precision = precision.unwrap_or_else(|| if percentage { 1 } else { 0 });
 

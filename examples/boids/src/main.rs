@@ -1,10 +1,8 @@
 use settings::Settings;
 use simulation::Simulation;
-use slider::Slider as LegacySlider;
-use yew::component::{Component, Context};
-use yew::{html, Html, Legacy, ShouldRender};
-
-type Slider = Legacy<LegacySlider>;
+use slider::Slider;
+use yew::component::{Component, Context, ShouldRender};
+use yew::{html, Html};
 
 mod boid;
 mod math;

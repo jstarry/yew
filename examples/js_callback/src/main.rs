@@ -1,6 +1,5 @@
-#![allow(deprecated)]
-
 use wasm_bindgen::prelude::*;
+use yew::component::{Component, Context, ShouldRender};
 use yew::prelude::*;
 
 mod bindings;
@@ -14,22 +13,20 @@ pub struct Model {
     payload: String,
     // Pointless field just to have something that's been manipulated
     debugged_payload: String,
-    link: ComponentLink<Model>,
 }
 
-impl LegacyComponent for Model {
+impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             payload: String::default(),
             debugged_payload: format!("{:?}", ""),
-            link,
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::Payload(payload) => {
                 if payload != self.payload {
@@ -41,7 +38,7 @@ impl LegacyComponent for Model {
                 }
             }
             Msg::AsyncPayload => {
-                let callback = self.link.callback(Msg::Payload);
+                let callback = ctx.callback(Msg::Payload);
                 bindings::get_payload_later(Closure::once_into_js(move |payload: String| {
                     callback.emit(payload)
                 }));
@@ -50,22 +47,18 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <>
                 <textarea
                     class="code-block"
-                    oninput=self.link.callback(|input: InputData| Msg::Payload(input.value))
+                    oninput=ctx.callback(|input: InputData| Msg::Payload(input.value))
                     value=&self.payload
                 />
-                <button onclick=self.link.callback(|_| Msg::Payload(bindings::get_payload()))>
+                <button onclick=ctx.callback(|_| Msg::Payload(bindings::get_payload()))>
                     { "Get the payload!" }
                 </button>
-                <button onclick=self.link.callback(|_| Msg::AsyncPayload) >
+                <button onclick=ctx.callback(|_| Msg::AsyncPayload) >
                     { "Get the payload later!" }
                 </button>
                 <p class="code-block">
@@ -77,5 +70,5 @@ impl LegacyComponent for Model {
 }
 
 fn main() {
-    yew::start_app::<Legacy<Model>>();
+    yew::start_app::<Model>();
 }

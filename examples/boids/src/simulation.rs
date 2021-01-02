@@ -2,9 +2,9 @@ use crate::boid::Boid;
 use crate::math::Vector2D;
 use crate::settings::Settings;
 use std::time::Duration;
-use yew::component::{Component, Context};
+use yew::component::{Component, Context, ShouldRender};
 use yew::services::interval::{IntervalService, IntervalTask};
-use yew::{html, Html, Properties, ShouldRender};
+use yew::{html, Html, Properties};
 
 pub const SIZE: Vector2D = Vector2D::new(1600.0, 1000.0);
 

@@ -1,7 +1,5 @@
 use crate::Client;
-use yew::{
-    classes, html, Callback, Component, Context, Html, InputData, Properties, ShouldRender,
-};
+use yew::{classes, html, Callback, Component, Context, Html, InputData, Properties, ShouldRender};
 
 #[derive(Debug)]
 pub enum Msg {

@@ -1,10 +1,9 @@
-#![allow(deprecated)]
-
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlCanvasElement, WebGlRenderingContext as GL};
+use yew::component::{Component, Context, ShouldRender};
 use yew::services::render::RenderTask;
 use yew::services::RenderService;
-use yew::{html, ComponentLink, Html, Legacy, LegacyComponent, NodeRef, ShouldRender};
+use yew::{html, Html, NodeRef};
 
 pub enum Msg {
     Render(f64),
@@ -13,26 +12,24 @@ pub enum Msg {
 pub struct Model {
     canvas: Option<HtmlCanvasElement>,
     gl: Option<GL>,
-    link: ComponentLink<Self>,
     node_ref: NodeRef,
     render_loop: Option<RenderTask>,
 }
 
-impl LegacyComponent for Model {
+impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             canvas: None,
             gl: None,
-            link,
             node_ref: NodeRef::default(),
             render_loop: None,
         }
     }
 
-    fn rendered(&mut self, first_render: bool) {
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         // Once rendered, store references for the canvas and GL context. These can be used for
         // resizing the rendering area when the window or canvas element are resized, as well as
         // for making GL calls.
@@ -56,7 +53,7 @@ impl LegacyComponent for Model {
         if first_render {
             // The callback to request animation frame is passed a time value which can be used for
             // rendering motion independent of the framerate which may vary.
-            let render_frame = self.link.callback(Msg::Render);
+            let render_frame = ctx.callback(Msg::Render);
             let handle = RenderService::request_animation_frame(render_frame);
 
             // A reference to the handle must be stored, otherwise it is dropped and the render won't
@@ -65,32 +62,28 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::Render(timestamp) => {
                 // Render functions are likely to get quite large, so it is good practice to split
                 // it into it's own function rather than keeping it inline in the update match
                 // case. This also allows for updating other UI elements that may be rendered in
                 // the DOM like a framerate counter, or other overlaid textual elements.
-                self.render_gl(timestamp);
+                self.render_gl(ctx, timestamp);
                 false
             }
         }
     }
 
-    fn view(&self) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <canvas ref=self.node_ref.clone() />
         }
     }
-
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
 }
 
 impl Model {
-    fn render_gl(&mut self, timestamp: f64) {
+    fn render_gl(&mut self, ctx: &Context<Self>, timestamp: f64) {
         let gl = self.gl.as_ref().expect("GL Context not initialized!");
 
         let vert_code = include_str!("./basic.vert");
@@ -132,7 +125,7 @@ impl Model {
 
         gl.draw_arrays(GL::TRIANGLES, 0, 6);
 
-        let render_frame = self.link.callback(Msg::Render);
+        let render_frame = ctx.callback(Msg::Render);
         let handle = RenderService::request_animation_frame(render_frame);
 
         // A reference to the new handle must be retained for the next render to run.
@@ -141,5 +134,5 @@ impl Model {
 }
 
 fn main() {
-    yew::start_app::<Legacy<Model>>();
+    yew::start_app::<Model>();
 }

@@ -99,7 +99,7 @@ impl ToTokens for HtmlComponent {
         let children_renderer = if children.is_empty() {
             None
         } else {
-            Some(quote! { ::yew::html::ChildrenRenderer::new(#children) })
+            Some(quote! { ::yew::component::ChildrenRenderer::new(#children) })
         };
         let build_props = props.build_properties_tokens(&props_ty, children_renderer);
 

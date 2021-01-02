@@ -1,9 +1,7 @@
-#![allow(deprecated)]
-
 use std::time::Duration;
 use yew::services::interval::{IntervalService, IntervalTask};
 use yew::services::{ConsoleService, Task, TimeoutService};
-use yew::{html, Callback, ComponentLink, Html, Legacy, LegacyComponent, ShouldRender};
+use yew::{html, Callback, Component, Context, Html, ShouldRender};
 
 pub enum Msg {
     StartTimeout,
@@ -15,7 +13,6 @@ pub enum Msg {
 }
 
 pub struct Model {
-    link: ComponentLink<Self>,
     job: Option<Box<dyn Task>>,
     time: String,
     messages: Vec<&'static str>,
@@ -29,11 +26,11 @@ impl Model {
     }
 }
 
-impl LegacyComponent for Model {
+impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
         let standalone_handle = IntervalService::spawn(
             Duration::from_secs(10),
             // This callback doesn't send any message to a scope
@@ -43,10 +40,9 @@ impl LegacyComponent for Model {
         );
 
         let clock_handle =
-            IntervalService::spawn(Duration::from_secs(1), link.callback(|_| Msg::UpdateTime));
+            IntervalService::spawn(Duration::from_secs(1), ctx.callback(|_| Msg::UpdateTime));
 
         Self {
-            link,
             job: None,
             time: Model::get_current_time(),
             messages: Vec::new(),
@@ -54,13 +50,11 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::StartTimeout => {
-                let handle = TimeoutService::spawn(
-                    Duration::from_secs(3),
-                    self.link.callback(|_| Msg::Done),
-                );
+                let handle =
+                    TimeoutService::spawn(Duration::from_secs(3), ctx.callback(|_| Msg::Done));
                 self.job = Some(Box::new(handle));
 
                 self.messages.clear();
@@ -71,10 +65,8 @@ impl LegacyComponent for Model {
                 true
             }
             Msg::StartInterval => {
-                let handle = IntervalService::spawn(
-                    Duration::from_secs(1),
-                    self.link.callback(|_| Msg::Tick),
-                );
+                let handle =
+                    IntervalService::spawn(Duration::from_secs(1), ctx.callback(|_| Msg::Tick));
                 self.job = Some(Box::new(handle));
 
                 self.messages.clear();
@@ -111,22 +103,18 @@ impl LegacyComponent for Model {
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         let has_job = self.job.is_some();
         html! {
             <>
                 <div id="buttons">
-                    <button disabled=has_job onclick=self.link.callback(|_| Msg::StartTimeout)>
+                    <button disabled=has_job onclick=ctx.callback(|_| Msg::StartTimeout)>
                         { "Start Timeout" }
                     </button>
-                    <button disabled=has_job onclick=self.link.callback(|_| Msg::StartInterval)>
+                    <button disabled=has_job onclick=ctx.callback(|_| Msg::StartInterval)>
                         { "Start Interval" }
                     </button>
-                    <button disabled=!has_job onclick=self.link.callback(|_| Msg::Cancel)>
+                    <button disabled=!has_job onclick=ctx.callback(|_| Msg::Cancel)>
                         { "Cancel!" }
                     </button>
                 </div>
@@ -144,5 +132,5 @@ impl LegacyComponent for Model {
 }
 
 fn main() {
-    yew::start_app::<Legacy<Model>>();
+    yew::start_app::<Model>();
 }
