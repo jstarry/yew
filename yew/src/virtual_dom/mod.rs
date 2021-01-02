@@ -393,7 +393,7 @@ pub trait Transformer<FROM, TO> {
 #[cfg(all(test, feature = "web_sys"))]
 mod layout_tests {
     use super::*;
-    use crate::component::{Component, AnyContext, Context};
+    use crate::component::{AnyContext, Component, Context};
     use crate::Html;
 
     struct Comp;

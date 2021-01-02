@@ -1,10 +1,11 @@
 //! This module contains useful utilities to get information about the current document.
 
+use crate::component::ChildrenRenderer;
 use anyhow::{anyhow, Error};
 use cfg_if::cfg_if;
 use cfg_match::cfg_match;
 use std::marker::PhantomData;
-use yew::html::ChildrenRenderer;
+
 cfg_if! {
     if #[cfg(feature = "std_web")] {
         use stdweb::web::{Document, Window};

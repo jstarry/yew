@@ -368,12 +368,11 @@ pub mod prelude {
     pub use crate::agent::{Bridge, Bridged, Dispatched, Threaded};
     pub use crate::app::App;
     pub use crate::callback::Callback;
-    pub use crate::events::*;
-    #[allow(deprecated)]
-    pub use crate::html::{
-        Children, ChildrenWithProps, Classes, ComponentLink, Html, Legacy, LegacyComponent, NodeRef,
-        Properties, ShouldRender,
+    pub use crate::component::{
+        Children, ChildrenWithProps, Component, Context, Properties, ShouldRender,
     };
+    pub use crate::events::*;
+    pub use crate::html::{Classes, Html, NodeRef};
     pub use crate::macros::{classes, html, html_nested};
 
     /// Prelude module for creating worker.

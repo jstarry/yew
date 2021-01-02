@@ -1,7 +1,7 @@
 //! This module contains fragments implementation.
 use super::{Key, VDiff, VNode, VText};
-use crate::html::NodeRef;
 use crate::component::AnyContext;
+use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
@@ -318,10 +318,10 @@ mod layout_tests {
 mod layout_tests_keys {
     extern crate self as yew;
 
+    use crate::component::{Component, Context, Properties, ShouldRender};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::virtual_dom::VNode;
-    use crate::component::{Component, Context, Properties, ShouldRender};
     use crate::{Children, Html};
     use web_sys::Node;
 

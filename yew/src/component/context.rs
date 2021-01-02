@@ -356,8 +356,10 @@ struct ComponentState<COMP: Component> {
     parent: Element,
     next_sibling: NodeRef,
     node_ref: NodeRef,
+
     context: Context<COMP>,
     component: Box<COMP>,
+
     placeholder: Option<VNode>,
     last_root: Option<VNode>,
     new_root: Option<VNode>,
@@ -588,9 +590,9 @@ mod tests {
     extern crate self as yew;
 
     use super::*;
+    use crate::component::{Component, Context, Properties, ShouldRender};
     use crate::html;
     use crate::html::Html;
-    use crate::component::{Component, Context, Properties, ShouldRender};
 
     use std::ops::Deref;
     #[cfg(feature = "wasm_test")]

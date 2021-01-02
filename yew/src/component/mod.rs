@@ -2,11 +2,13 @@
 
 #![allow(missing_docs)]
 
-mod properties;
+mod children;
 pub(crate) mod context;
+mod properties;
 
-pub use properties::Properties;
+pub use children::*;
 pub use context::{AnyContext, Context};
+pub use properties::Properties;
 
 use crate::html::Html;
 

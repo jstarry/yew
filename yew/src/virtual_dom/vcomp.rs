@@ -304,8 +304,8 @@ impl<COMP: Component> fmt::Debug for VChild<COMP> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{Component, Context, Properties};
-    use crate::{html, Children, Html, NodeRef};
+    use crate::component::{Children, Component, Context, Properties};
+    use crate::{html, Html, NodeRef};
     use cfg_match::cfg_match;
 
     #[cfg(feature = "std_web")]
