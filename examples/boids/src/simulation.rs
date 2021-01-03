@@ -28,19 +28,20 @@ pub struct Simulation {
     interval_task: IntervalTask,
 }
 
+use yew::component::Create;
 impl Component for Simulation {
     type Message = Msg;
     type Properties = Props;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let settings = &ctx.props.settings;
+    fn create(e: CreateEvent<Self>) -> Self {
+        let settings = &create.props.settings;
         let boids = (0..settings.amount_of_boids)
             .map(|_| Boid::new_random(settings))
             .collect();
 
         let interval_task = IntervalService::spawn(
             Duration::from_millis(settings.tick_interval_ms),
-            ctx.callback(|_| Msg::Tick),
+            create.ctx.callback(|_| Msg::Tick),
         );
 
         Self {
