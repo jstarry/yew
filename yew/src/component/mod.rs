@@ -11,14 +11,40 @@ pub use link::{AnyLink, Link};
 pub use properties::Properties;
 
 use crate::html::Html;
+use std::fmt;
 
 /// This type indicates that component should be rendered again.
 pub type ShouldRender = bool;
 
 /// Component lifecycle context
 pub struct Context<'a, COMP: Component> {
-    link: &'a Link<COMP>,
-    props: &'a COMP::Properties,
+    pub link: &'a Link<COMP>,
+    pub props: &'a COMP::Properties,
+}
+
+impl<COMP: Component> fmt::Debug for Context<'_, COMP> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Context<_>")
+    }
+}
+
+impl<COMP: Component> Clone for Context<'_, COMP> {
+    fn clone(&self) -> Self {
+        Self {
+            link: Clone::clone(&self.link),
+            props: self.props.clone(),
+        }
+    }
+}
+impl<COMP: Component> Copy for Context<'_, COMP> {}
+
+impl<'a, COMP: Component> Context<'a, COMP> {
+    pub(crate) fn new(link: &'a Link<COMP>, props: &'a COMP::Properties) -> Self {
+        Self {
+            link,
+            props
+        }
+    }
 }
 
 /// Yew component
@@ -27,13 +53,13 @@ pub trait Component: Sized + 'static {
     type Properties: Properties;
 
     fn create(_ctx: Context<'_, Self>) -> Self;
-    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> ShouldRender {
+    fn update(&mut self, _ctx: Context<'_, Self>, _msg: Self::Message) -> ShouldRender {
         false
     }
-    fn changed(&mut self, _ctx: &Context<Self>, _new_props: &Self::Properties) -> ShouldRender {
+    fn changed(&mut self, _ctx: Context<'_, Self>, _new_props: &Self::Properties) -> ShouldRender {
         true
     }
-    fn view(&self, ctx: &Context<Self>) -> Html;
-    fn rendered(&mut self, _ctx: &Context<Self>, _first_render: bool) {}
-    fn destroy(&mut self, _ctx: &Context<Self>) {}
+    fn view(&self, ctx: Context<'_, Self>) -> Html;
+    fn rendered(&mut self, _ctx: Context<'_, Self>, _first_render: bool) {}
+    fn destroy(&mut self, _ctx: Context<'_, Self>) {}
 }

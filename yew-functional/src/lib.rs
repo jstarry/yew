@@ -18,7 +18,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use std::rc::Rc;
-use yew::component::{AnyContext, Component, Context, Properties};
+use yew::component::{AnyLink, Component, Context, Properties};
 use yew::html::Html;
 
 mod use_context_hook;
@@ -65,7 +65,7 @@ type ProcessMessage = Rc<dyn Fn(Msg, bool)>;
 
 struct HookState {
     counter: usize,
-    context: AnyContext,
+    link: AnyLink,
     process_message: ProcessMessage,
     hooks: Vec<Rc<RefCell<dyn std::any::Any>>>,
     destroy_listeners: Vec<Box<dyn FnOnce()>>,
@@ -118,21 +118,20 @@ where
     type Message = Box<dyn FnOnce() -> bool>;
     type Properties = T::TProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let context = AnyContext::from(ctx.clone());
+    fn create(ctx: Context<Self>) -> Self {
+        let link = ctx.link.clone();
         let message_queue = MsgQueue::default();
-        let ctx = ctx.clone();
         Self {
             _never: std::marker::PhantomData::default(),
             message_queue: message_queue.clone(),
             hook_state: RefCell::new(Some(HookState {
                 counter: 0,
-                context,
+                link: AnyLink::from(ctx.link.clone()),
                 process_message: Rc::new(move |msg, post_render| {
                     if post_render {
                         message_queue.push(msg);
                     } else {
-                        ctx.send_message(msg);
+                        link.send_message(msg);
                     }
                 }),
                 hooks: vec![],
@@ -141,17 +140,17 @@ where
         }
     }
 
-    fn rendered(&mut self, ctx: &Context<Self>, _first_render: bool) {
+    fn rendered(&mut self, ctx: Context<Self>, _first_render: bool) {
         for msg in self.message_queue.drain() {
-            ctx.send_message(msg);
+            ctx.link.send_message(msg);
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: Context<Self>, msg: Self::Message) -> bool {
         msg()
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: Context<Self>) -> Html {
         // Reset hook
         self.hook_state
             .try_borrow_mut()
@@ -163,7 +162,7 @@ where
         // Load hook
         self.swap_hook_state();
 
-        let ret = T::run(&ctx.props);
+        let ret = T::run(ctx.props);
 
         // Restore previous hook
         self.swap_hook_state();
@@ -171,7 +170,7 @@ where
         ret
     }
 
-    fn destroy(&mut self, _ctx: &Context<Self>) {
+    fn destroy(&mut self, _ctx: Context<Self>) {
         if let Some(ref mut hook_state) = *self.hook_state.borrow_mut() {
             for hook in hook_state.destroy_listeners.drain(..) {
                 hook()
@@ -629,6 +628,6 @@ where
     hook_runner(&mut hook, hook_callback)
 }
 
-pub(crate) fn get_current_context() -> Option<AnyContext> {
-    CURRENT_HOOK.with(|cell| cell.borrow().as_ref().map(|state| state.context.clone()))
+pub(crate) fn get_component_link() -> Option<AnyLink> {
+    CURRENT_HOOK.with(|cell| cell.borrow().as_ref().map(|state| state.link.clone()))
 }

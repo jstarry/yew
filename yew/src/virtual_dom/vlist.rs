@@ -1,6 +1,6 @@
 //! This module contains fragments implementation.
 use super::{Key, VDiff, VNode, VText};
-use crate::component::AnyContext;
+use crate::component::AnyLink;
 use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use std::collections::{HashMap, HashSet};
@@ -78,7 +78,7 @@ impl VDiff for VList {
 
     fn apply(
         &mut self,
-        parent_context: &AnyContext,
+        parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -318,7 +318,7 @@ mod layout_tests {
 mod layout_tests_keys {
     extern crate self as yew;
 
-    use crate::component::{Component, Context, Properties, ShouldRender};
+    use crate::component::{Component, Link, Properties, ShouldRender};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::virtual_dom::VNode;
@@ -346,14 +346,14 @@ mod layout_tests_keys {
         type Message = ();
         type Properties = CountingCompProps;
 
-        fn create(ctx: &Context<Self>) -> Self {
+        fn create(ctx: &Link<Self>) -> Self {
             Comp {
                 panic_if_changes: ctx.props.can_change,
             }
         }
 
         #[allow(unused)]
-        fn changed(&mut self, ctx: &Context<Self>, new_props: &Self::Properties) -> ShouldRender {
+        fn changed(&mut self, ctx: &Link<Self>, new_props: &Self::Properties) -> ShouldRender {
             #[cfg(feature = "wasm_test")]
             wasm_bindgen_test::console_log!("Comp changed: {} -> {}", ctx.props.id, new_props.id);
             if self.panic_if_changes {
@@ -362,7 +362,7 @@ mod layout_tests_keys {
             true
         }
 
-        fn view(&self, ctx: &Context<Self>) -> Html {
+        fn view(&self, ctx: &Link<Self>) -> Html {
             html! { <p>{ ctx.props.id }</p> }
         }
     }
@@ -377,11 +377,11 @@ mod layout_tests_keys {
         type Message = ();
         type Properties = ListProps;
 
-        fn create(_ctx: &Context<Self>) -> Self {
+        fn create(_ctx: &Link<Self>) -> Self {
             Self
         }
 
-        fn view(&self, ctx: &Context<Self>) -> Html {
+        fn view(&self, ctx: &Link<Self>) -> Html {
             html! { <>{ for ctx.props.children.iter() }</> }
         }
     }

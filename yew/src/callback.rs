@@ -118,7 +118,7 @@ pub(crate) mod test_util {
     use std::cell::RefCell;
     use std::future::Future;
     use std::pin::Pin;
-    use std::task::{Context, Poll, Waker};
+    use std::task::{Link, Poll, Waker};
 
     struct CallbackHandle<T> {
         waker: Option<Waker>,
@@ -156,7 +156,7 @@ pub(crate) mod test_util {
 
     impl<T> Future for CallbackFuture<T> {
         type Output = T;
-        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        fn poll(self: Pin<&mut Self>, cx: &mut Link<'_>) -> Poll<Self::Output> {
             if let Some(output) = self.ready() {
                 Poll::Ready(output)
             } else {

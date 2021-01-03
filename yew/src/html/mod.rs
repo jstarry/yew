@@ -43,13 +43,13 @@ pub type Html = VNode;
 ///     type Message = ();
 ///     type Properties = ();
 ///
-///     fn create(_: &Context<Self>) -> Self {
+///     fn create(_: &Link<Self>) -> Self {
 ///         Input {
 ///             node_ref: NodeRef::default(),
 ///         }
 ///     }
 ///
-///     fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
+///     fn rendered(&mut self, _ctx: &Link<Self>, first_render: bool) {
 ///         if first_render {
 ///             if let Some(input) = self.node_ref.cast::<InputElement>() {
 ///                 input.focus();
@@ -57,7 +57,7 @@ pub type Html = VNode;
 ///         }
 ///     }
 ///
-///     fn view(&self, _ctx: &Context<Self>) -> Html {
+///     fn view(&self, _ctx: &Link<Self>) -> Html {
 ///         html! {
 ///             <input ref=self.node_ref.clone() type="text" />
 ///         }

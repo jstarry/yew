@@ -111,7 +111,7 @@ impl<COMP: Component> LinkHandle for Link<COMP> {
 /// A link which allows sending messages to a component.
 pub struct Link<COMP: Component> {
     pub(crate) parent: Option<Rc<AnyLink>>,
-    state: Shared<Option<ComponentState<COMP>>>,
+    state: Rc<RefCell<Option<ComponentState<COMP>>>>,
 }
 
 impl<COMP: Component> fmt::Debug for Link<COMP> {
@@ -120,10 +120,31 @@ impl<COMP: Component> fmt::Debug for Link<COMP> {
     }
 }
 
+impl<COMP: Component> Clone for Link<COMP> {
+    fn clone(&self) -> Self {
+        Self {
+            parent: self.parent.clone(),
+            state: self.state.clone(),
+        }
+    }
+}
+
 impl<COMP: Component> Link<COMP> {
     /// Returns the parent link
     pub fn get_parent(&self) -> Option<&AnyLink> {
         self.parent.as_deref()
+    }
+
+    // TODO: consider combining this with get_component
+
+    /// Returns the linked component if available
+    pub fn get_props(&self) -> Option<impl Deref<Target = COMP::Properties> + '_> {
+        self.state.try_borrow().ok().and_then(|state_ref| {
+            state_ref.as_ref()?;
+            Some(Ref::map(state_ref, |state| {
+                state.as_ref().unwrap().props.as_ref()
+            }))
+        })
     }
 
     /// Returns the linked component if available
@@ -159,7 +180,6 @@ impl<COMP: Component> Link<COMP> {
         scheduler.push_comp(
             ComponentRunnableType::Create,
             Box::new(CreateComponent {
-                state: self.state.clone(),
                 parent,
                 next_sibling,
                 placeholder,
@@ -308,10 +328,10 @@ impl<COMP: Component> Link<COMP> {
 }
 
 /// Defines a message type that can be sent to a component.
-/// Used for the return value of closure given to [Context::batch_callback](struct.Context.html#method.batch_callback).
+/// Used for the return value of closure given to [Link::batch_callback](struct.Link.html#method.batch_callback).
 pub trait SendAsMessage<COMP: Component> {
     /// Sends the message to the given component's link.
-    /// See [Context::batch_callback](struct.Context.html#method.batch_callback).
+    /// See [Link::batch_callback](struct.Link.html#method.batch_callback).
     fn send(self, link: &Link<COMP>);
 }
 
@@ -363,12 +383,8 @@ impl<COMP: Component> ComponentState<COMP> {
         link: Link<COMP>,
         props: Rc<COMP::Properties>,
     ) -> Self {
-        let create = Create {
-            props: props.as_ref(),
-            ctx: &link,
-        };
-
-        let component = Box::new(COMP::create(create));
+        let context = Context::new(&link, props.as_ref());
+        let component = Box::new(COMP::create(context));
         Self {
             parent,
             next_sibling,
@@ -383,6 +399,10 @@ impl<COMP: Component> ComponentState<COMP> {
             pending_updates: Vec::new(),
         }
     }
+
+    fn as_context(&self) -> Context<'_, COMP> {
+        Context::new(&self.link, self.props.as_ref())
+    }
 }
 
 /// A `Runnable` task which creates the `ComponentState` (if there is
@@ -392,7 +412,6 @@ struct CreateComponent<COMP>
 where
     COMP: Component,
 {
-    state: Shared<Option<ComponentState<COMP>>>,
     parent: Element,
     next_sibling: NodeRef,
     placeholder: Option<VNode>,
@@ -406,14 +425,14 @@ where
     COMP: Component,
 {
     fn run(self: Box<Self>) {
-        let mut current_state = self.state.borrow_mut();
+        let mut current_state = self.link.state.borrow_mut();
         if current_state.is_none() {
             *current_state = Some(ComponentState::new(
                 self.parent,
                 self.next_sibling,
                 self.placeholder,
                 self.node_ref,
-                self.link,
+                self.link.clone(),
                 self.props,
             ));
         }
@@ -446,11 +465,14 @@ where
             let should_update = match self.update {
                 ComponentUpdate::First => true,
                 ComponentUpdate::Message(message) => {
-                    state.component.update(&state.link, message)
+                    let context = Context::new(&state.link, state.props.as_ref());
+                    state.component.update(context, message)
                 }
                 ComponentUpdate::MessageBatch(messages) => {
+                    let component = &mut state.component;
+                    let context = Context::new(&state.link, state.props.as_ref());
                     messages.into_iter().fold(false, |acc, msg| {
-                        state.component.update(&state.link, msg) || acc
+                        component.update(context, msg) || acc
                     })
                 }
                 ComponentUpdate::Properties(props, node_ref, next_sibling) => {
@@ -459,7 +481,8 @@ where
                     // When components are updated, their siblings were likely also updated
                     state.next_sibling = next_sibling;
                     let should_render = if *state.props != *props {
-                        state.component.changed(&state.link, &props)
+                        let context = Context::new(&state.link, state.props.as_ref());
+                        state.component.changed(context, &props)
                     } else {
                         false
                     };
@@ -469,7 +492,7 @@ where
             };
 
             if should_update {
-                state.new_root = Some(state.component.view(&state.link));
+                state.new_root = Some(state.component.view(state.as_context()));
                 scheduler().push_comp(
                     ComponentRunnableType::Render,
                     Box::new(RenderComponent {
@@ -543,7 +566,8 @@ where
             }
 
             state.has_rendered = true;
-            state.component.rendered(&state.link, self.first_render);
+            let context = Context::new(&state.link, state.props.as_ref());
+            state.component.rendered(context, self.first_render);
             if !state.pending_updates.is_empty() {
                 scheduler().push_comp_update_batch(
                     state
@@ -570,7 +594,8 @@ where
 {
     fn run(self: Box<Self>) {
         if let Some(mut state) = self.state.borrow_mut().take() {
-            state.component.destroy(&state.link);
+            let context = Context::new(&state.link, state.props.as_ref());
+            state.component.destroy(context);
             if let Some(last_frame) = &mut state.last_root {
                 last_frame.detach(&state.parent);
             }
@@ -584,7 +609,7 @@ mod tests {
     extern crate self as yew;
 
     use super::*;
-    use crate::component::{Component, Link, Properties, ShouldRender};
+    use crate::component::{Component, Properties, ShouldRender};
     use crate::html;
     use crate::html::Html;
 
@@ -605,18 +630,18 @@ mod tests {
         type Message = ();
         type Properties = ChildProps;
 
-        fn create(_: &Link<Self>) -> Self {
+        fn create(_: Context<Self>) -> Self {
             Child
         }
 
-        fn rendered(&mut self, ctx: &Link<Self>, _first_render: bool) {
+        fn rendered(&mut self, ctx: Context<Self>, _first_render: bool) {
             ctx.props
                 .lifecycle
                 .borrow_mut()
                 .push("child rendered".into());
         }
 
-        fn view(&self, _ctx: &Link<Self>) -> Html {
+        fn view(&self, _ctx: Context<Self>) -> Html {
             html! {}
         }
     }
@@ -635,7 +660,7 @@ mod tests {
         type Message = bool;
         type Properties = Props;
 
-        fn create(ctx: &Link<Self>) -> Self {
+        fn create(ctx: &Context<Self>) -> Self {
             ctx.props.lifecycle.borrow_mut().push("create".into());
             if let Some(msg) = ctx.props.create_message {
                 ctx.send_message(msg);
@@ -643,7 +668,7 @@ mod tests {
             Comp
         }
 
-        fn rendered(&mut self, ctx: &Link<Self>, first_render: bool) {
+        fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
             if let Some(msg) = ctx.props.rendered_message.borrow_mut().take() {
                 ctx.send_message(msg);
             }
@@ -653,7 +678,7 @@ mod tests {
                 .push(format!("rendered({})", first_render));
         }
 
-        fn update(&mut self, ctx: &Link<Self>, msg: Self::Message) -> ShouldRender {
+        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
             if let Some(msg) = ctx.props.update_message.borrow_mut().take() {
                 ctx.send_message(msg);
             }
@@ -664,12 +689,12 @@ mod tests {
             msg
         }
 
-        fn changed(&mut self, ctx: &Link<Self>, _: &Self::Properties) -> ShouldRender {
+        fn changed(&mut self, ctx: &Context<Self>, _: &Self::Properties) -> ShouldRender {
             ctx.props.lifecycle.borrow_mut().push("change".into());
             false
         }
 
-        fn view(&self, ctx: &Link<Self>) -> Html {
+        fn view(&self, ctx: &Context<Self>) -> Html {
             if let Some(msg) = ctx.props.view_message.borrow_mut().take() {
                 ctx.send_message(msg);
             }
@@ -677,7 +702,7 @@ mod tests {
             html! { <Child lifecycle=ctx.props.lifecycle.clone() /> }
         }
 
-        fn destroy(&mut self, ctx: &Link<Self>) {
+        fn destroy(&mut self, ctx: &Context<Self>) {
             ctx.props.lifecycle.borrow_mut().push("destroy".into());
         }
     }
@@ -685,7 +710,7 @@ mod tests {
     fn test_lifecycle(props: Props, expected: &[String]) {
         let document = crate::utils::document();
         let lifecycle = props.lifecycle.clone();
-        let link = Link::<Comp>::new(None, Rc::new(props));
+        let link = Context::<Comp>::new(None, Rc::new(props));
         let el = document.create_element("div").unwrap();
 
         lifecycle.borrow_mut().clear();

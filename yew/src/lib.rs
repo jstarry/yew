@@ -48,13 +48,13 @@
 //!     type Message = Msg;
 //!     type Properties = ();
 //!
-//!     fn create(_ctx: &Context<Self>) -> Self {
+//!     fn create(_ctx: &Link<Self>) -> Self {
 //!         Self {
 //!             value: 0,
 //!         }
 //!     }
 //!
-//!     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> ShouldRender {
+//!     fn update(&mut self, ctx: &Link<Self>, msg: Self::Message) -> ShouldRender {
 //!         match msg {
 //!             Msg::AddOne => {
 //!                 self.value += 1;
@@ -63,7 +63,7 @@
 //!         }
 //!     }
 //!
-//!     fn view(&self, ctx: &Context<Self>) -> Html {
+//!     fn view(&self, ctx: &Link<Self>) -> Html {
 //!         html! {
 //!             <div>
 //!                 <button onclick=ctx.callback(|_| Msg::AddOne)>{ "+1" }</button>
@@ -152,8 +152,8 @@ pub use yew_macro::html;
 /// #   type Message = ();
 ///   type Properties = Props;
 ///   // ...
-/// #   fn create(ctx: &Context<Self>) -> Self { unimplemented!() }
-/// #   fn view(&self, ctx: &Context<Self>) -> Html { unimplemented!() }
+/// #   fn create(ctx: &Link<Self>) -> Self { unimplemented!() }
+/// #   fn view(&self, ctx: &Link<Self>) -> Html { unimplemented!() }
 /// }
 ///
 /// #[derive(PartialEq, Clone)]
@@ -162,8 +162,8 @@ pub use yew_macro::html;
 /// #   type Message = ();
 /// #   type Properties = ();
 ///   // ...
-/// #   fn create(_: &Context<Self>) -> Self { Self }
-/// #   fn view(&self, ctx: &Context<Self>) -> Html { unimplemented!() }
+/// #   fn create(_: &Link<Self>) -> Self { Self }
+/// #   fn view(&self, ctx: &Link<Self>) -> Html { unimplemented!() }
 /// }
 ///
 /// // Required for ChildrenRenderer
@@ -240,8 +240,8 @@ pub use yew_macro::html_nested;
 /// #   type Message = ();
 ///     type Properties = Props;
 ///     // ...
-/// #   fn create(_: &Context<Self>) -> Self { unimplemented!() }
-/// #   fn view(&self, _: &Context<Self>) -> Html { unimplemented!() }
+/// #   fn create(_: &Link<Self>) -> Self { unimplemented!() }
+/// #   fn view(&self, _: &Link<Self>) -> Html { unimplemented!() }
 /// }
 ///
 /// # fn foo() -> Html {
@@ -299,7 +299,7 @@ pub mod events {
         if #[cfg(feature = "std_web")] {
             #[doc(no_inline)]
             pub use stdweb::web::event::{
-                BlurEvent, ClickEvent, ContextMenuEvent, DoubleClickEvent, DragDropEvent, DragEndEvent,
+                BlurEvent, ClickEvent, LinkMenuEvent, DoubleClickEvent, DragDropEvent, DragEndEvent,
                 DragEnterEvent, DragEvent, DragExitEvent, DragLeaveEvent, DragOverEvent, DragStartEvent,
                 FocusEvent, GotPointerCaptureEvent, IKeyboardEvent, IMouseEvent, IPointerEvent,
                 KeyDownEvent, KeyPressEvent, KeyUpEvent, LostPointerCaptureEvent, MouseDownEvent,
@@ -369,7 +369,7 @@ pub mod prelude {
     pub use crate::app::App;
     pub use crate::callback::Callback;
     pub use crate::component::{
-        Children, ChildrenWithProps, Component, Context, Properties, ShouldRender,
+        Children, ChildrenWithProps, Component, Link, Properties, ShouldRender,
     };
     pub use crate::events::*;
     pub use crate::html::{Classes, Html, NodeRef};
@@ -379,7 +379,7 @@ pub mod prelude {
     #[cfg(feature = "agent")]
     pub mod worker {
         pub use crate::agent::{
-            Agent, AgentLink, Bridge, Bridged, Context, HandlerId, Job, Private, Public,
+            Agent, AgentLink, Bridge, Bridged, Link, HandlerId, Job, Private, Public,
         };
     }
 }

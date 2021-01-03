@@ -1,7 +1,7 @@
 //! This module contains the implementation of abstract virtual node.
 
 use super::{Key, VChild, VComp, VDiff, VList, VTag, VText};
-use crate::component::{AnyContext, Component};
+use crate::component::{AnyLink, Component};
 use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use cfg_match::cfg_match;
@@ -106,7 +106,7 @@ impl VDiff for VNode {
 
     fn apply(
         &mut self,
-        parent_context: &AnyContext,
+        parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,

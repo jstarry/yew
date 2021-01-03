@@ -11,7 +11,7 @@ impl_action! {
     onchange(event: ChangeEvent) -> ChangeData => |this: &Element, _| { onchange_handler(this) }
     onclick(event: ClickEvent) -> ClickEvent => |_, event| { event }
     // onclose not supported
-    oncontextmenu(event: ContextMenuEvent) -> ContextMenuEvent => |_, event| { event }
+    oncontextmenu(event: LinkMenuEvent) -> LinkMenuEvent => |_, event| { event }
     // oncuechange not supported
     ondblclick(event: DoubleClickEvent) -> DoubleClickEvent => |_, event| { event }
     ondrag(event: DragEvent) -> DragEvent => |_, event| { event }

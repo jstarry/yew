@@ -1,7 +1,7 @@
 //! This module contains the implementation of a virtual text node `VText`.
 
 use super::{VDiff, VNode};
-use crate::component::AnyContext;
+use crate::component::AnyLink;
 use crate::html::NodeRef;
 use crate::utils::document;
 use cfg_if::cfg_if;
@@ -52,7 +52,7 @@ impl VDiff for VText {
     /// Renders virtual node over existing `TextNode`, but only if value of text has changed.
     fn apply(
         &mut self,
-        _parent_context: &AnyContext,
+        _parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,

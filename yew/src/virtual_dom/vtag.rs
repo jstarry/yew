@@ -3,7 +3,7 @@
 use super::{
     Attributes, Key, Listener, Listeners, Patch, PositionalAttr, Transformer, VDiff, VList, VNode,
 };
-use crate::component::AnyContext;
+use crate::component::AnyLink;
 use crate::html::NodeRef;
 use crate::utils::document;
 use cfg_if::cfg_if;
@@ -462,7 +462,7 @@ impl VDiff for VTag {
     /// to compute what to patch in the actual DOM nodes.
     fn apply(
         &mut self,
-        parent_context: &AnyContext,
+        parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -572,8 +572,8 @@ mod tests {
     #[cfg(feature = "wasm_test")]
     wasm_bindgen_test_configure!(run_in_browser);
 
-    fn test_context() -> AnyContext {
-        AnyContext {
+    fn test_context() -> AnyLink {
+        AnyLink {
             type_id: TypeId::of::<()>(),
             parent: None,
             state: Rc::new(()),

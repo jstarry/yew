@@ -8,7 +8,7 @@ use std::fmt;
 ///
 /// In this example, the `Wrapper` component is used to wrap other elements.
 /// ```
-///# use yew::{Children, Context, Html, Properties, Component, html};
+///# use yew::{Children, Link, Html, Properties, Component, html};
 ///# #[derive(PartialEq, Properties)]
 ///# struct WrapperProps {
 ///#     children: Children,
@@ -17,9 +17,9 @@ use std::fmt;
 ///# impl Component for Wrapper{
 ///#     type Message = ();
 ///#     type Properties = WrapperProps;
-///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
 ///#     // This is not a valid implementation.  This is done for space convenience.
-///#     fn view(&self, _ctx: &Context<Self>) -> Html {
+///#     fn view(&self, _ctx: &Link<Self>) -> Html {
 /// html! {
 ///     <Wrapper>
 ///         <h4>{ "Hi" }</h4>
@@ -35,7 +35,7 @@ use std::fmt;
 /// The Wrapper component must define a `children` property in order to wrap other elements. The
 /// children property can be used to render the wrapped elements.
 /// ```
-///# use yew::{Children, Context, Html, Properties, Component, html};
+///# use yew::{Children, Link, Html, Properties, Component, html};
 /// #[derive(PartialEq, Properties)]
 /// struct WrapperProps {
 ///     children: Children,
@@ -46,8 +46,8 @@ use std::fmt;
 ///     // ...
 ///#     type Message = ();
 ///#     type Properties = WrapperProps;
-///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
-///     fn view(&self, ctx: &Context<Self>) -> Html {
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///     fn view(&self, ctx: &Link<Self>) -> Html {
 ///         html! {
 ///             <div id="container">
 ///                 { ctx.props.children.clone() }
@@ -65,7 +65,7 @@ pub type Children = ChildrenRenderer<VNode>;
 ///
 /// In this example, the `List` component can wrap `ListItem` components.
 /// ```
-///# use yew::{html, Component, Context, Html, ChildrenWithProps, Properties};
+///# use yew::{html, Component, Link, Html, ChildrenWithProps, Properties};
 ///#
 ///# #[derive(PartialEq, Properties)]
 ///# struct ListProps {
@@ -75,8 +75,8 @@ pub type Children = ChildrenRenderer<VNode>;
 ///# impl Component for List {
 ///#     type Message = ();
 ///#     type Properties = ListProps;
-///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
-///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///#     fn view(&self, ctx: &Link<Self>) -> Html {unimplemented!()}
 ///# }
 ///# #[derive(Clone, PartialEq, Properties)]
 ///# struct ListItemProps {
@@ -86,8 +86,8 @@ pub type Children = ChildrenRenderer<VNode>;
 ///# impl Component for ListItem {
 ///#     type Message = ();
 ///#     type Properties = ListItemProps;
-///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
-///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///#     fn view(&self, ctx: &Link<Self>) -> Html {unimplemented!()}
 ///# }
 ///# fn view() -> Html {
 /// html!{
@@ -105,7 +105,7 @@ pub type Children = ChildrenRenderer<VNode>;
 /// The `List` component must define a `children` property in order to wrap the list items. The
 /// `children` property can be used to filter, mutate, and render the items.
 /// ```
-///# use yew::{html, Component, Context, Html, ChildrenWithProps, Properties};
+///# use yew::{html, Component, Link, Html, ChildrenWithProps, Properties};
 ///#
 /// #[derive(PartialEq, Properties)]
 /// struct ListProps {
@@ -116,9 +116,9 @@ pub type Children = ChildrenRenderer<VNode>;
 /// impl Component for List {
 ///#     type Message = ();
 ///#     type Properties = ListProps;
-///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
 ///     // ...
-///     fn view(&self, ctx: &Context<Self>) -> Html {
+///     fn view(&self, ctx: &Link<Self>) -> Html {
 ///         html!{{
 ///             for ctx.props.children.iter().map(|mut item| {
 ///                 item.props.borrow_mut().value = format!("item-{}", item.props.borrow().value);
@@ -138,8 +138,8 @@ pub type Children = ChildrenRenderer<VNode>;
 ///# impl Component for ListItem {
 ///#     type Message = ();
 ///#     type Properties = ListItemProps;
-///#     fn create(ctx: &Context<Self>) -> Self {unimplemented!()}
-///#     fn view(&self, ctx: &Context<Self>) -> Html {unimplemented!()}
+///#     fn create(ctx: &Link<Self>) -> Self {unimplemented!()}
+///#     fn view(&self, ctx: &Link<Self>) -> Html {unimplemented!()}
 ///# }
 /// ```
 pub type ChildrenWithProps<CHILD> = ChildrenRenderer<VChild<CHILD>>;
