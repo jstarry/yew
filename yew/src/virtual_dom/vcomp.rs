@@ -2,8 +2,8 @@
 
 use super::{Key, Transformer, VDiff, VNode};
 use crate::component::{
-    context::{ComponentUpdate, ContextHandle},
-    AnyContext, Component, Context,
+    link::{ComponentUpdate, LinkHandle},
+    AnyLink, Component, Link,
 };
 use crate::html::NodeRef;
 use crate::utils::document;
@@ -20,7 +20,7 @@ cfg_if! {
 /// A virtual component.
 pub struct VComp {
     type_id: TypeId,
-    context: Option<Box<dyn ContextHandle>>,
+    context: Option<Box<dyn LinkHandle>>,
     props: Option<Box<dyn Mountable>>,
     pub(crate) node_ref: NodeRef,
     pub(crate) key: Option<Key>,
@@ -128,14 +128,14 @@ trait Mountable {
     fn mount(
         self: Box<Self>,
         node_ref: NodeRef,
-        parent_context: &AnyContext,
+        parent_context: &AnyLink,
         parent: Element,
         next_sibling: NodeRef,
-    ) -> Box<dyn ContextHandle>;
+    ) -> Box<dyn LinkHandle>;
     fn reuse(
         self: Box<Self>,
         node_ref: NodeRef,
-        context: &dyn ContextHandle,
+        context: &dyn LinkHandle,
         next_sibling: NodeRef,
     );
 }
@@ -161,17 +161,18 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
     fn mount(
         self: Box<Self>,
         node_ref: NodeRef,
-        parent_context: &AnyContext,
+        parent_link: &AnyLink,
         parent: Element,
         next_sibling: NodeRef,
-    ) -> Box<dyn ContextHandle> {
-        let context: Context<COMP> =
-            Context::new(Some(Rc::new(parent_context.clone())), self.props);
+    ) -> Box<dyn LinkHandle> {
+        let context: Link<COMP> =
+            Link::new(Some(Rc::new(parent_link.clone())));
         let context = context.mount_in_place(
             parent,
             next_sibling,
             Some(VNode::VRef(node_ref.get().unwrap())),
             node_ref,
+            self.props,
         );
 
         Box::new(context)
@@ -180,10 +181,10 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
     fn reuse(
         self: Box<Self>,
         node_ref: NodeRef,
-        context: &dyn ContextHandle,
+        context: &dyn LinkHandle,
         next_sibling: NodeRef,
     ) {
-        let context: Context<COMP> = context.to_any().downcast();
+        let context: Link<COMP> = context.to_any().downcast();
         context.update(ComponentUpdate::Properties(
             self.props,
             node_ref,
@@ -199,7 +200,7 @@ impl VDiff for VComp {
 
     fn apply(
         &mut self,
-        parent_context: &AnyContext,
+        parent_context: &AnyLink,
         parent: &Element,
         next_sibling: NodeRef,
         ancestor: Option<VNode>,
@@ -304,7 +305,7 @@ impl<COMP: Component> fmt::Debug for VChild<COMP> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{Children, Component, Context, Properties};
+    use crate::component::{Children, Component, Link, Properties};
     use crate::{html, Html, NodeRef};
     use cfg_match::cfg_match;
 
@@ -331,11 +332,11 @@ mod tests {
         type Message = ();
         type Properties = Props;
 
-        fn create(_ctx: &Context<Self>) -> Self {
+        fn create(_ctx: &Link<Self>) -> Self {
             Comp
         }
 
-        fn view(&self, _ctx: &Context<Self>) -> Html {
+        fn view(&self, _ctx: &Link<Self>) -> Html {
             html! { <div/> }
         }
     }
@@ -343,8 +344,8 @@ mod tests {
     #[test]
     fn update_loop() {
         let document = crate::utils::document();
-        let parent_context: AnyContext =
-            Context::<Comp>::new(None, Rc::new(Props::default())).into();
+        let parent_context: AnyLink =
+            Link::<Comp>::new(None, Rc::new(Props::default())).into();
         let parent_element = document.create_element("div").unwrap();
 
         let mut ancestor = html! { <Comp></Comp> };
@@ -475,11 +476,11 @@ mod tests {
         type Message = ();
         type Properties = ListProps;
 
-        fn create(_ctx: &Context<Self>) -> Self {
+        fn create(_ctx: &Link<Self>) -> Self {
             Self
         }
 
-        fn view(&self, ctx: &Context<Self>) -> Html {
+        fn view(&self, ctx: &Link<Self>) -> Html {
             let item_iter = ctx
                 .props
                 .children
@@ -492,11 +493,11 @@ mod tests {
     }
 
     #[cfg(feature = "web_sys")]
-    use super::{AnyContext, Element};
+    use super::{AnyLink, Element};
 
     #[cfg(feature = "web_sys")]
-    fn setup_parent() -> (AnyContext, Element) {
-        let context = AnyContext {
+    fn setup_parent() -> (AnyLink, Element) {
+        let context = AnyLink {
             type_id: TypeId::of::<()>(),
             parent: None,
             props: Rc::new(()),
@@ -510,7 +511,7 @@ mod tests {
     }
 
     #[cfg(feature = "web_sys")]
-    fn get_html(mut node: Html, context: &AnyContext, parent: &Element) -> String {
+    fn get_html(mut node: Html, context: &AnyLink, parent: &Element) -> String {
         // clear parent
         parent.set_inner_html("");
 
@@ -567,7 +568,7 @@ mod tests {
 
     #[test]
     fn reset_node_ref() {
-        let context = AnyContext {
+        let context = AnyLink {
             type_id: TypeId::of::<()>(),
             parent: None,
             state: Rc::new(()),
@@ -597,7 +598,7 @@ mod tests {
 mod layout_tests {
     extern crate self as yew;
 
-    use crate::component::{Component, Context, Properties};
+    use crate::component::{Component, Link, Properties};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::{Children, Html};
@@ -623,13 +624,13 @@ mod layout_tests {
         type Message = ();
         type Properties = CompProps;
 
-        fn create(_ctx: &Context<Self>) -> Self {
+        fn create(_ctx: &Link<Self>) -> Self {
             Comp {
                 _marker: PhantomData::default(),
             }
         }
 
-        fn view(&self, ctx: &Context<Self>) -> Html {
+        fn view(&self, ctx: &Link<Self>) -> Html {
             html! {
                 <>{ ctx.props.children.clone() }</>
             }

@@ -13,7 +13,7 @@ pub mod vtag;
 #[doc(hidden)]
 pub mod vtext;
 
-use crate::component::AnyContext;
+use crate::link::AnyLink;
 use crate::html::NodeRef;
 use cfg_if::cfg_if;
 use indexmap::IndexMap;

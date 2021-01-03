@@ -3,11 +3,11 @@
 #![allow(missing_docs)]
 
 mod children;
-pub(crate) mod context;
+pub(crate) mod link;
 mod properties;
 
 pub use children::*;
-pub use context::{AnyContext, Context};
+pub use link::{AnyLink, Link};
 pub use properties::Properties;
 
 use crate::html::Html;
@@ -15,12 +15,18 @@ use crate::html::Html;
 /// This type indicates that component should be rendered again.
 pub type ShouldRender = bool;
 
+/// Component lifecycle context
+pub struct Context<'a, COMP: Component> {
+    link: &'a Link<COMP>,
+    props: &'a COMP::Properties,
+}
+
 /// Yew component
 pub trait Component: Sized + 'static {
     type Message: 'static;
     type Properties: Properties;
 
-    fn create(ctx: &Context<Self>) -> Self;
+    fn create(_ctx: Context<'_, Self>) -> Self;
     fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> ShouldRender {
         false
     }

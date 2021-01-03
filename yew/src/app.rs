@@ -40,10 +40,10 @@ where
     /// will render the model to a virtual DOM tree. If you would like to pass props,
     /// use the `mount_with_props` method.
     pub fn mount(self, element: Element) -> Context<COMP> {
-        let context = Context::new(None, Rc::new(COMP::Properties::default()));
+        let context = Context::new(None);
 
         clear_element(&element);
-        context.mount_in_place(element, NodeRef::default(), None, NodeRef::default())
+        context.mount_in_place(element, NodeRef::default(), None, NodeRef::default(), Rc::new(COMP::Properties::default()))
     }
 
     /// Alias to `mount("body", ...)`.
@@ -73,8 +73,8 @@ where
             .remove_child(&body_element)
             .expect("can't remove body child");
 
-        let context = Context::new(None, Rc::new(COMP::Properties::default()));
-        context.mount_in_place(html_element, NodeRef::default(), None, NodeRef::default())
+        let context = Context::new(None);
+        context.mount_in_place(html_element, NodeRef::default(), None, NodeRef::default(), Rc::new(COMP::Properties::default()))
     }
 }
 
@@ -95,8 +95,8 @@ where
     /// will render the model to a virtual DOM tree.
     pub fn mount_with_props(self, element: Element, props: COMP::Properties) -> Context<COMP> {
         clear_element(&element);
-        let context = Context::new(None, Rc::new(props));
-        context.mount_in_place(element, NodeRef::default(), None, NodeRef::default())
+        let context = Context::new(None);
+        context.mount_in_place(element, NodeRef::default(), None, NodeRef::default(), Rc::new(props))
     }
 
     /// Alias to `mount_with_props("body", ...)`.
@@ -125,8 +125,8 @@ where
         html_element
             .remove_child(&body_element)
             .expect("can't remove body child");
-        let context = Context::new(None, Rc::new(props));
-        context.mount_in_place(html_element, NodeRef::default(), None, NodeRef::default())
+        let context = Context::new(None);
+        context.mount_in_place(html_element, NodeRef::default(), None, NodeRef::default(), Rc::new(props))
     }
 }
 
