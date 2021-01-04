@@ -1,6 +1,7 @@
-use crate::component::Component;
-use crate::scheduler::{scheduler, ComponentRunnableType, Runnable, Shared};
-use crate::virtual_dom::{VDiff, VNode};
+use super::Component;
+use super::lifecycle::{ComponentTask, ComponentRunnable, UpdateTask, CreateTask};
+use crate::scheduler::{scheduler, Shared};
+use crate::virtual_dom::VNode;
 use crate::{Callback, NodeRef};
 use cfg_if::cfg_if;
 use std::any::{Any, TypeId};
@@ -16,18 +17,6 @@ cfg_if! {
     }
 }
 
-/// Updates for a `Component` instance. Used by link sender.
-pub(crate) enum ComponentUpdate<COMP: Component> {
-    /// First update
-    First,
-    /// Wraps messages for a component.
-    Message(COMP::Message),
-    /// Wraps batch of messages for a component.
-    MessageBatch(Vec<COMP::Message>),
-    /// Wraps properties, node ref, and next sibling for a component.
-    Properties(Rc<COMP::Properties>, NodeRef, NodeRef),
-}
-
 /// Untyped link used for accessing parent link
 #[derive(Debug, Clone)]
 pub struct AnyLink {
@@ -36,8 +25,8 @@ pub struct AnyLink {
     pub(crate) state: Rc<dyn Any>,
 }
 
-impl<COMP: Component> From<Link<COMP>> for AnyLink {
-    fn from(link: Link<COMP>) -> Self {
+impl<COMP: Component> From<ComponentLink<COMP>> for AnyLink {
+    fn from(link: ComponentLink<COMP>) -> Self {
         AnyLink {
             type_id: TypeId::of::<COMP>(),
             parent: link.parent,
@@ -58,8 +47,8 @@ impl AnyLink {
     }
 
     /// Attempts to downcast into a typed link
-    pub fn downcast<COMP: Component>(self) -> Link<COMP> {
-        Link {
+    pub fn downcast<COMP: Component>(self) -> ComponentLink<COMP> {
+        ComponentLink {
             parent: self.parent,
             state: self
                 .state
@@ -76,7 +65,7 @@ pub(crate) trait LinkHandle {
     fn destroy(&mut self);
 }
 
-impl<COMP: Component> LinkHandle for Link<COMP> {
+impl<COMP: Component> LinkHandle for ComponentLink<COMP> {
     fn to_any(&self) -> AnyLink {
         self.clone().into()
     }
@@ -102,25 +91,23 @@ impl<COMP: Component> LinkHandle for Link<COMP> {
 
     /// Schedules a task to destroy a component
     fn destroy(&mut self) {
-        let state = self.state.clone();
-        let destroy = DestroyComponent { state };
-        scheduler().push_comp(ComponentRunnableType::Destroy, Box::new(destroy));
+        self.schedule(ComponentTask::Destroy);
     }
 }
 
 /// A link which allows sending messages to a component.
-pub struct Link<COMP: Component> {
+pub struct ComponentLink<COMP: Component> {
     pub(crate) parent: Option<Rc<AnyLink>>,
     state: Rc<RefCell<Option<ComponentState<COMP>>>>,
 }
 
-impl<COMP: Component> fmt::Debug for Link<COMP> {
+impl<COMP: Component> fmt::Debug for ComponentLink<COMP> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("Link<_>")
     }
 }
 
-impl<COMP: Component> Clone for Link<COMP> {
+impl<COMP: Component> Clone for ComponentLink<COMP> {
     fn clone(&self) -> Self {
         Self {
             parent: self.parent.clone(),
@@ -129,7 +116,7 @@ impl<COMP: Component> Clone for Link<COMP> {
     }
 }
 
-impl<COMP: Component> Link<COMP> {
+impl<COMP: Component> ComponentLink<COMP> {
     /// Returns the parent link
     pub fn get_parent(&self) -> Option<&AnyLink> {
         self.parent.as_deref()
@@ -159,10 +146,7 @@ impl<COMP: Component> Link<COMP> {
 
     pub(crate) fn new(parent: Option<Rc<AnyLink>>) -> Self {
         let state = Rc::new(RefCell::new(None));
-        Link {
-            parent,
-            state,
-        }
+        ComponentLink { parent, state }
     }
 
     /// Mounts a component with `props` to the specified `element` in the DOM.
@@ -173,34 +157,34 @@ impl<COMP: Component> Link<COMP> {
         placeholder: Option<VNode>,
         node_ref: NodeRef,
         props: Rc<COMP::Properties>,
-    ) -> Link<COMP> {
-        let scheduler = scheduler();
-        // Hold scheduler lock so that `create` doesn't run until `update` is scheduled
-        let lock = scheduler.lock();
-        scheduler.push_comp(
-            ComponentRunnableType::Create,
-            Box::new(CreateComponent {
-                parent,
-                next_sibling,
-                placeholder,
-                node_ref,
-                props,
-                link: self.clone(),
-            }),
-        );
-        self.update(ComponentUpdate::First);
-        drop(lock);
-        scheduler.start();
+    ) -> ComponentLink<COMP> {
+        self.schedule(UpdateTask::First.into());
+        self.run(ComponentTask::Create(CreateTask {
+            parent,
+            next_sibling,
+            placeholder,
+            node_ref,
+            props,
+            link: self.clone(),
+        }));
         self
     }
 
-    /// Schedules a task to send an update to a component
-    pub(crate) fn update(&self, update: ComponentUpdate<COMP>) {
-        let update = UpdateComponent {
+    fn run(&self, task: ComponentTask<COMP>) {
+        let scheduler = scheduler();
+        scheduler.component.push(Box::new(ComponentRunnable {
             state: self.state.clone(),
-            update,
-        };
-        scheduler().push_comp(ComponentRunnableType::Update, Box::new(update));
+            task
+        }));
+        scheduler.start();
+    }
+
+    fn schedule(&self, task: ComponentTask<COMP>) {
+        let scheduler = scheduler().component;
+        scheduler.push(Box::new(ComponentRunnable {
+            state: self.state.clone(),
+            task
+        }));
     }
 
     /// Send a message to the component.
@@ -211,7 +195,7 @@ impl<COMP: Component> Link<COMP> {
     where
         T: Into<COMP::Message>,
     {
-        self.update(ComponentUpdate::Message(msg.into()));
+        self.run(UpdateTask::Message(msg.into()).into());
     }
 
     /// Send a batch of messages to the component.
@@ -229,7 +213,7 @@ impl<COMP: Component> Link<COMP> {
             return;
         }
 
-        self.update(ComponentUpdate::MessageBatch(messages));
+        self.run(UpdateTask::MessageBatch(messages).into());
     }
 
     /// Creates a `Callback` which will send a message to the linked
@@ -332,14 +316,14 @@ impl<COMP: Component> Link<COMP> {
 pub trait SendAsMessage<COMP: Component> {
     /// Sends the message to the given component's link.
     /// See [Link::batch_callback](struct.Link.html#method.batch_callback).
-    fn send(self, link: &Link<COMP>);
+    fn send(self, link: &ComponentLink<COMP>);
 }
 
 impl<COMP> SendAsMessage<COMP> for Option<COMP::Message>
 where
     COMP: Component,
 {
-    fn send(self, link: &Link<COMP>) {
+    fn send(self, link: &ComponentLink<COMP>) {
         if let Some(msg) = self {
             link.send_message(msg);
         }
@@ -350,257 +334,8 @@ impl<COMP> SendAsMessage<COMP> for Vec<COMP::Message>
 where
     COMP: Component,
 {
-    fn send(self, link: &Link<COMP>) {
+    fn send(self, link: &ComponentLink<COMP>) {
         link.send_message_batch(self);
-    }
-}
-
-struct ComponentState<COMP: Component> {
-    parent: Element,
-    next_sibling: NodeRef,
-    node_ref: NodeRef,
-
-    link: Link<COMP>,
-    component: Box<COMP>,
-    props: Rc<COMP::Properties>,
-
-    placeholder: Option<VNode>,
-    last_root: Option<VNode>,
-    new_root: Option<VNode>,
-    has_rendered: bool,
-    pending_updates: Vec<Box<UpdateComponent<COMP>>>,
-}
-
-use super::Context;
-impl<COMP: Component> ComponentState<COMP> {
-    /// Creates a new `ComponentState`, also invokes the `create()`
-    /// method on component to create it.
-    fn new(
-        parent: Element,
-        next_sibling: NodeRef,
-        placeholder: Option<VNode>,
-        node_ref: NodeRef,
-        link: Link<COMP>,
-        props: Rc<COMP::Properties>,
-    ) -> Self {
-        let context = Context::new(&link, props.as_ref());
-        let component = Box::new(COMP::create(context));
-        Self {
-            parent,
-            next_sibling,
-            node_ref,
-            link,
-            component,
-            props,
-            placeholder,
-            last_root: None,
-            new_root: None,
-            has_rendered: false,
-            pending_updates: Vec::new(),
-        }
-    }
-
-    fn as_context(&self) -> Context<'_, COMP> {
-        Context::new(&self.link, self.props.as_ref())
-    }
-}
-
-/// A `Runnable` task which creates the `ComponentState` (if there is
-/// none) and invokes the `create()` method on a `Component` to create
-/// it.
-struct CreateComponent<COMP>
-where
-    COMP: Component,
-{
-    parent: Element,
-    next_sibling: NodeRef,
-    placeholder: Option<VNode>,
-    node_ref: NodeRef,
-    props: Rc<COMP::Properties>,
-    link: Link<COMP>,
-}
-
-impl<COMP> Runnable for CreateComponent<COMP>
-where
-    COMP: Component,
-{
-    fn run(self: Box<Self>) {
-        let mut current_state = self.link.state.borrow_mut();
-        if current_state.is_none() {
-            *current_state = Some(ComponentState::new(
-                self.parent,
-                self.next_sibling,
-                self.placeholder,
-                self.node_ref,
-                self.link.clone(),
-                self.props,
-            ));
-        }
-    }
-}
-
-/// A `Runnable` task which calls the `update()` method on a `Component`.
-struct UpdateComponent<COMP>
-where
-    COMP: Component,
-{
-    state: Shared<Option<ComponentState<COMP>>>,
-    update: ComponentUpdate<COMP>,
-}
-
-impl<COMP> Runnable for UpdateComponent<COMP>
-where
-    COMP: Component,
-{
-    fn run(self: Box<Self>) {
-        let state_clone = self.state.clone();
-        if let Some(mut state) = state_clone.borrow_mut().as_mut() {
-            if state.new_root.is_some() {
-                state.pending_updates.push(self);
-                return;
-            }
-
-            let first_update = matches!(self.update, ComponentUpdate::First);
-
-            let should_update = match self.update {
-                ComponentUpdate::First => true,
-                ComponentUpdate::Message(message) => {
-                    let context = Context::new(&state.link, state.props.as_ref());
-                    state.component.update(context, message)
-                }
-                ComponentUpdate::MessageBatch(messages) => {
-                    let component = &mut state.component;
-                    let context = Context::new(&state.link, state.props.as_ref());
-                    messages.into_iter().fold(false, |acc, msg| {
-                        component.update(context, msg) || acc
-                    })
-                }
-                ComponentUpdate::Properties(props, node_ref, next_sibling) => {
-                    // When components are updated, a new node ref could have been passed in
-                    state.node_ref = node_ref;
-                    // When components are updated, their siblings were likely also updated
-                    state.next_sibling = next_sibling;
-                    let should_render = if *state.props != *props {
-                        let context = Context::new(&state.link, state.props.as_ref());
-                        state.component.changed(context, &props)
-                    } else {
-                        false
-                    };
-                    state.props = props;
-                    should_render
-                }
-            };
-
-            if should_update {
-                state.new_root = Some(state.component.view(state.as_context()));
-                scheduler().push_comp(
-                    ComponentRunnableType::Render,
-                    Box::new(RenderComponent {
-                        state: self.state,
-                        first_render: first_update,
-                    }),
-                );
-            };
-        };
-    }
-}
-
-/// A `Runnable` task which renders a `Component`.
-struct RenderComponent<COMP>
-where
-    COMP: Component,
-{
-    state: Shared<Option<ComponentState<COMP>>>,
-    first_render: bool,
-}
-
-impl<COMP> Runnable for RenderComponent<COMP>
-where
-    COMP: Component,
-{
-    fn run(self: Box<Self>) {
-        let state_clone = self.state.clone();
-        if let Some(mut state) = self.state.borrow_mut().as_mut() {
-            // Skip render if we haven't seen the "first render" yet
-            if !self.first_render && state.last_root.is_none() {
-                return;
-            }
-
-            if let Some(mut new_root) = state.new_root.take() {
-                let last_root = state.last_root.take().or_else(|| state.placeholder.take());
-                let parent_link = state.link.clone().into();
-                let next_sibling = state.next_sibling.clone();
-                let node = new_root.apply(&parent_link, &state.parent, next_sibling, last_root);
-                state.node_ref.link(node);
-                state.last_root = Some(new_root);
-                scheduler().push_comp(
-                    ComponentRunnableType::Rendered,
-                    Box::new(RenderedComponent {
-                        state: state_clone,
-                        first_render: self.first_render,
-                    }),
-                );
-            }
-        }
-    }
-}
-
-/// A `Runnable` task which calls the `rendered()` method on a `Component`.
-struct RenderedComponent<COMP>
-where
-    COMP: Component,
-{
-    state: Shared<Option<ComponentState<COMP>>>,
-    first_render: bool,
-}
-
-impl<COMP> Runnable for RenderedComponent<COMP>
-where
-    COMP: Component,
-{
-    fn run(self: Box<Self>) {
-        if let Some(mut state) = self.state.borrow_mut().as_mut() {
-            // Don't call rendered if we haven't seen the "first render" yet
-            if !self.first_render && !state.has_rendered {
-                return;
-            }
-
-            state.has_rendered = true;
-            let context = Context::new(&state.link, state.props.as_ref());
-            state.component.rendered(context, self.first_render);
-            if !state.pending_updates.is_empty() {
-                scheduler().push_comp_update_batch(
-                    state
-                        .pending_updates
-                        .drain(..)
-                        .map(|u| u as Box<dyn Runnable>),
-                );
-            }
-        }
-    }
-}
-
-/// A `Runnable` task which calls the `destroy()` method on a `Component`.
-struct DestroyComponent<COMP>
-where
-    COMP: Component,
-{
-    state: Shared<Option<ComponentState<COMP>>>,
-}
-
-impl<COMP> Runnable for DestroyComponent<COMP>
-where
-    COMP: Component,
-{
-    fn run(self: Box<Self>) {
-        if let Some(mut state) = self.state.borrow_mut().take() {
-            let context = Context::new(&state.link, state.props.as_ref());
-            state.component.destroy(context);
-            if let Some(last_frame) = &mut state.last_root {
-                last_frame.detach(&state.parent);
-            }
-            state.node_ref.set(None);
-        }
     }
 }
 

@@ -3,7 +3,7 @@
 use super::{Key, Transformer, VDiff, VNode};
 use crate::component::{
     link::{ComponentUpdate, LinkHandle},
-    AnyLink, Component, Link,
+    AnyLink, Component, ComponentLink,
 };
 use crate::html::NodeRef;
 use crate::utils::document;
@@ -132,12 +132,7 @@ trait Mountable {
         parent: Element,
         next_sibling: NodeRef,
     ) -> Box<dyn LinkHandle>;
-    fn reuse(
-        self: Box<Self>,
-        node_ref: NodeRef,
-        context: &dyn LinkHandle,
-        next_sibling: NodeRef,
-    );
+    fn reuse(self: Box<Self>, node_ref: NodeRef, context: &dyn LinkHandle, next_sibling: NodeRef);
 }
 
 struct PropsWrapper<COMP: Component> {
@@ -165,8 +160,7 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
         parent: Element,
         next_sibling: NodeRef,
     ) -> Box<dyn LinkHandle> {
-        let context: Link<COMP> =
-            Link::new(Some(Rc::new(parent_link.clone())));
+        let context: ComponentLink<COMP> = ComponentLink::new(Some(Rc::new(parent_link.clone())));
         let context = context.mount_in_place(
             parent,
             next_sibling,
@@ -178,13 +172,8 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
         Box::new(context)
     }
 
-    fn reuse(
-        self: Box<Self>,
-        node_ref: NodeRef,
-        context: &dyn LinkHandle,
-        next_sibling: NodeRef,
-    ) {
-        let context: Link<COMP> = context.to_any().downcast();
+    fn reuse(self: Box<Self>, node_ref: NodeRef, context: &dyn LinkHandle, next_sibling: NodeRef) {
+        let context: ComponentLink<COMP> = context.to_any().downcast();
         context.update(ComponentUpdate::Properties(
             self.props,
             node_ref,
@@ -305,7 +294,7 @@ impl<COMP: Component> fmt::Debug for VChild<COMP> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{Children, Component, Link, Properties};
+    use crate::component::{Children, Component, ComponentLink, Properties};
     use crate::{html, Html, NodeRef};
     use cfg_match::cfg_match;
 
@@ -332,11 +321,11 @@ mod tests {
         type Message = ();
         type Properties = Props;
 
-        fn create(_ctx: &Link<Self>) -> Self {
+        fn create(_ctx: &ComponentLink<Self>) -> Self {
             Comp
         }
 
-        fn view(&self, _ctx: &Link<Self>) -> Html {
+        fn view(&self, _ctx: &ComponentLink<Self>) -> Html {
             html! { <div/> }
         }
     }
@@ -345,7 +334,7 @@ mod tests {
     fn update_loop() {
         let document = crate::utils::document();
         let parent_context: AnyLink =
-            Link::<Comp>::new(None, Rc::new(Props::default())).into();
+            ComponentLink::<Comp>::new(None, Rc::new(Props::default())).into();
         let parent_element = document.create_element("div").unwrap();
 
         let mut ancestor = html! { <Comp></Comp> };
@@ -476,11 +465,11 @@ mod tests {
         type Message = ();
         type Properties = ListProps;
 
-        fn create(_ctx: &Link<Self>) -> Self {
+        fn create(_ctx: &ComponentLink<Self>) -> Self {
             Self
         }
 
-        fn view(&self, ctx: &Link<Self>) -> Html {
+        fn view(&self, ctx: &ComponentLink<Self>) -> Html {
             let item_iter = ctx
                 .props
                 .children
@@ -598,7 +587,7 @@ mod tests {
 mod layout_tests {
     extern crate self as yew;
 
-    use crate::component::{Component, Link, Properties};
+    use crate::component::{Component, ComponentLink, Properties};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::{Children, Html};
@@ -624,13 +613,13 @@ mod layout_tests {
         type Message = ();
         type Properties = CompProps;
 
-        fn create(_ctx: &Link<Self>) -> Self {
+        fn create(_ctx: &ComponentLink<Self>) -> Self {
             Comp {
                 _marker: PhantomData::default(),
             }
         }
 
-        fn view(&self, ctx: &Link<Self>) -> Html {
+        fn view(&self, ctx: &ComponentLink<Self>) -> Html {
             html! {
                 <>{ ctx.props.children.clone() }</>
             }

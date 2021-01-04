@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
+use crate::component::{Component, lifecycle::{ComponentTask, ComponentRunnable}};
 
 pub(crate) type Shared<T> = Rc<RefCell<T>>;
 
@@ -27,15 +28,7 @@ pub(crate) struct Scheduler {
     /// This lock is used to prevent recursion in [Scheduler#start()](Scheduler#start())
     lock: Rc<RefCell<()>>,
     main: Shared<VecDeque<Box<dyn Runnable>>>,
-    component: ComponentScheduler,
-}
-
-pub(crate) enum ComponentRunnableType {
-    Destroy,
-    Create,
-    Update,
-    Render,
-    Rendered,
+    pub(crate) component: ComponentScheduler,
 }
 
 #[derive(Clone)]
@@ -61,6 +54,16 @@ impl ComponentScheduler {
         }
     }
 
+    pub(crate) fn push<COMP: Component>(&self, runnable: Box<ComponentRunnable<COMP>>) {
+        match runnable.task {
+            ComponentTask::Create(_) => self.create.borrow_mut().push_back(runnable),
+            ComponentTask::Update(_) => self.update.borrow_mut().push_back(runnable),
+            ComponentTask::Render(_) => self.render.borrow_mut().push_back(runnable),
+            ComponentTask::Rendered(_) => self.rendered.borrow_mut().push(runnable),
+            ComponentTask::Destroy => self.destroy.borrow_mut().push_back(runnable),
+        };
+    }
+
     fn next_runnable(&self) -> Option<Box<dyn Runnable>> {
         self.destroy
             .borrow_mut()
@@ -79,19 +82,6 @@ impl Scheduler {
             main: Rc::new(RefCell::new(VecDeque::new())),
             component: ComponentScheduler::new(),
         }
-    }
-
-    pub(crate) fn push_comp(&self, run_type: ComponentRunnableType, runnable: Box<dyn Runnable>) {
-        match run_type {
-            ComponentRunnableType::Destroy => {
-                self.component.destroy.borrow_mut().push_back(runnable)
-            }
-            ComponentRunnableType::Create => self.component.create.borrow_mut().push_back(runnable),
-            ComponentRunnableType::Update => self.component.update.borrow_mut().push_back(runnable),
-            ComponentRunnableType::Render => self.component.render.borrow_mut().push_back(runnable),
-            ComponentRunnableType::Rendered => self.component.rendered.borrow_mut().push(runnable),
-        };
-        self.start();
     }
 
     pub(crate) fn push_comp_update_batch(&self, it: impl IntoIterator<Item = Box<dyn Runnable>>) {

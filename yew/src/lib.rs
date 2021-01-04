@@ -369,7 +369,7 @@ pub mod prelude {
     pub use crate::app::App;
     pub use crate::callback::Callback;
     pub use crate::component::{
-        Children, ChildrenWithProps, Component, Link, Properties, ShouldRender,
+        Children, ChildrenWithProps, Component, ComponentLink, Properties, ShouldRender,
     };
     pub use crate::events::*;
     pub use crate::html::{Classes, Html, NodeRef};
@@ -379,7 +379,7 @@ pub mod prelude {
     #[cfg(feature = "agent")]
     pub mod worker {
         pub use crate::agent::{
-            Agent, AgentLink, Bridge, Bridged, Link, HandlerId, Job, Private, Public,
+            Agent, AgentLink, Bridge, Bridged, HandlerId, Job, Link, Private, Public,
         };
     }
 }

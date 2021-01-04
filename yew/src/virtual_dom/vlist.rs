@@ -318,7 +318,7 @@ mod layout_tests {
 mod layout_tests_keys {
     extern crate self as yew;
 
-    use crate::component::{Component, Link, Properties, ShouldRender};
+    use crate::component::{Component, ComponentLink, Properties, ShouldRender};
     use crate::html;
     use crate::virtual_dom::layout_tests::{diff_layouts, TestLayout};
     use crate::virtual_dom::VNode;
@@ -346,14 +346,18 @@ mod layout_tests_keys {
         type Message = ();
         type Properties = CountingCompProps;
 
-        fn create(ctx: &Link<Self>) -> Self {
+        fn create(ctx: &ComponentLink<Self>) -> Self {
             Comp {
                 panic_if_changes: ctx.props.can_change,
             }
         }
 
         #[allow(unused)]
-        fn changed(&mut self, ctx: &Link<Self>, new_props: &Self::Properties) -> ShouldRender {
+        fn changed(
+            &mut self,
+            ctx: &ComponentLink<Self>,
+            new_props: &Self::Properties,
+        ) -> ShouldRender {
             #[cfg(feature = "wasm_test")]
             wasm_bindgen_test::console_log!("Comp changed: {} -> {}", ctx.props.id, new_props.id);
             if self.panic_if_changes {
@@ -362,7 +366,7 @@ mod layout_tests_keys {
             true
         }
 
-        fn view(&self, ctx: &Link<Self>) -> Html {
+        fn view(&self, ctx: &ComponentLink<Self>) -> Html {
             html! { <p>{ ctx.props.id }</p> }
         }
     }
@@ -377,11 +381,11 @@ mod layout_tests_keys {
         type Message = ();
         type Properties = ListProps;
 
-        fn create(_ctx: &Link<Self>) -> Self {
+        fn create(_ctx: &ComponentLink<Self>) -> Self {
             Self
         }
 
-        fn view(&self, ctx: &Link<Self>) -> Html {
+        fn view(&self, ctx: &ComponentLink<Self>) -> Html {
             html! { <>{ for ctx.props.children.iter() }</> }
         }
     }

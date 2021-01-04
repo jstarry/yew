@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 use std::{iter, mem};
 use yew::html;
-use yew::component::{Context, AnyLink, Link, Component};
+use yew::component::{Context, AnyLink, ComponentLink, Component};
 use yew::{Children, Html, Properties};
 
 type ConsumerCallback<T> = Box<dyn Fn(Rc<T>)>;
@@ -85,7 +85,7 @@ impl<T: PartialEq + 'static> Component for ContextProvider<T> {
 
 fn find_context_provider_link<T: PartialEq + 'static>(
     link: &AnyLink,
-) -> Option<Link<ContextProvider<T>>> {
+) -> Option<ComponentLink<ContextProvider<T>>> {
     let expected_type_id = TypeId::of::<ContextProvider<T>>();
     iter::successors(Some(link), |link| link.get_parent())
         .filter(|link| link.get_type_id() == &expected_type_id)
@@ -124,7 +124,7 @@ fn find_context_provider_link<T: PartialEq + 'static>(
 /// ```
 pub fn use_context<T: PartialEq + 'static>() -> Option<Rc<T>> {
     struct UseContextState<T2: PartialEq + 'static> {
-        provider_link: Option<Link<ContextProvider<T2>>>,
+        provider_link: Option<ComponentLink<ContextProvider<T2>>>,
         current_context: Option<Rc<T2>>,
         callback: Option<Rc<ConsumerCallback<T2>>>,
     }

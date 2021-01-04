@@ -3,11 +3,12 @@
 #![allow(missing_docs)]
 
 mod children;
+pub(crate) mod lifecycle;
 pub(crate) mod link;
 mod properties;
 
 pub use children::*;
-pub use link::{AnyLink, Link};
+pub use link::{AnyLink, ComponentLink};
 pub use properties::Properties;
 
 use crate::html::Html;
@@ -18,7 +19,7 @@ pub type ShouldRender = bool;
 
 /// Component lifecycle context
 pub struct Context<'a, COMP: Component> {
-    pub link: &'a Link<COMP>,
+    pub link: &'a ComponentLink<COMP>,
     pub props: &'a COMP::Properties,
 }
 
@@ -39,11 +40,8 @@ impl<COMP: Component> Clone for Context<'_, COMP> {
 impl<COMP: Component> Copy for Context<'_, COMP> {}
 
 impl<'a, COMP: Component> Context<'a, COMP> {
-    pub(crate) fn new(link: &'a Link<COMP>, props: &'a COMP::Properties) -> Self {
-        Self {
-            link,
-            props
-        }
+    pub(crate) fn new(link: &'a ComponentLink<COMP>, props: &'a COMP::Properties) -> Self {
+        Self { link, props }
     }
 }
 

@@ -393,7 +393,7 @@ pub trait Transformer<FROM, TO> {
 #[cfg(all(test, feature = "web_sys"))]
 mod layout_tests {
     use super::*;
-    use crate::component::{AnyLink, Component, Link};
+    use crate::component::{AnyLink, Component, ComponentLink};
     use crate::Html;
 
     struct Comp;
@@ -401,11 +401,11 @@ mod layout_tests {
         type Message = ();
         type Properties = ();
 
-        fn create(_: &Link<Self>) -> Self {
+        fn create(_: &ComponentLink<Self>) -> Self {
             unimplemented!()
         }
 
-        fn view(&self, _: &Link<Self>) -> Html {
+        fn view(&self, _: &ComponentLink<Self>) -> Html {
             unimplemented!()
         }
     }
@@ -418,7 +418,7 @@ mod layout_tests {
 
     pub(crate) fn diff_layouts(layouts: Vec<TestLayout<'_>>) {
         let document = crate::utils::document();
-        let parent_context: AnyLink = Link::<Comp>::new(None, Rc::new(())).into();
+        let parent_context: AnyLink = ComponentLink::<Comp>::new(None, Rc::new(())).into();
         let parent_element = document.create_element("div").unwrap();
         let parent_node: Node = parent_element.clone().into();
         let end_node = document.create_text_node("END");
