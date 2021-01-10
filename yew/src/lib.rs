@@ -379,7 +379,7 @@ pub mod prelude {
     #[cfg(feature = "agent")]
     pub mod worker {
         pub use crate::agent::{
-            Agent, AgentLink, Bridge, Bridged, HandlerId, Job, Link, Private, Public,
+            Agent, AgentLink, Bridge, Bridged, HandlerId, Job, Private, Public,
         };
     }
 }

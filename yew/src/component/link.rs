@@ -1,5 +1,5 @@
 use super::Component;
-use super::lifecycle::{ComponentTask, ComponentRunnable, UpdateTask, CreateTask};
+use super::lifecycle::{ComponentState, ComponentTask, ComponentRunnable, UpdateTask, CreateTask};
 use crate::scheduler::{scheduler, Shared};
 use crate::virtual_dom::VNode;
 use crate::{Callback, NodeRef};
@@ -170,7 +170,7 @@ impl<COMP: Component> ComponentLink<COMP> {
         self
     }
 
-    fn run(&self, task: ComponentTask<COMP>) {
+    pub(crate) fn run(&self, task: ComponentTask<COMP>) {
         let scheduler = scheduler();
         scheduler.component.push(Box::new(ComponentRunnable {
             state: self.state.clone(),
@@ -180,7 +180,7 @@ impl<COMP: Component> ComponentLink<COMP> {
     }
 
     fn schedule(&self, task: ComponentTask<COMP>) {
-        let scheduler = scheduler().component;
+        let scheduler = &scheduler().component;
         scheduler.push(Box::new(ComponentRunnable {
             state: self.state.clone(),
             task

@@ -1,4 +1,4 @@
-use super::{link::ComponentState, Component, ComponentLink, Context};
+use super::{Component, ComponentLink, Context};
 use crate::scheduler::{scheduler, Runnable, Shared};
 use crate::virtual_dom::{VDiff, VNode};
 use crate::NodeRef;
@@ -18,17 +18,16 @@ pub struct ComponentState<COMP: Component> {
     node_ref: NodeRef,
 
     link: ComponentLink<COMP>,
-    component: Box<COMP>,
-    props: Rc<COMP::Properties>,
+    pub(crate) component: Box<COMP>,
+    pub(crate) props: Rc<COMP::Properties>,
 
-    placeholder: Option<VNode>,
-    last_root: Option<VNode>,
+    pub(crate) placeholder: Option<VNode>,
+    pub(crate) last_root: Option<VNode>,
     new_root: Option<VNode>,
     has_rendered: bool,
-    pending_updates: Vec<Box<UpdateTask<COMP>>>,
+    pending_updates: Vec<UpdateTask<COMP>>,
 }
 
-use super::Context;
 impl<COMP: Component> ComponentState<COMP> {
     /// Creates a new `ComponentState`, also invokes the `create()`
     /// method on component to create it.
@@ -78,12 +77,12 @@ impl<COMP: Component> From<CreateTask<COMP>> for ComponentTask<COMP> {
 }
 
 pub(crate) struct CreateTask<COMP: Component> {
-    parent: Element,
-    next_sibling: NodeRef,
-    placeholder: Option<VNode>,
-    node_ref: NodeRef,
-    props: Rc<COMP::Properties>,
-    link: ComponentLink<COMP>,
+    pub(crate) parent: Element,
+    pub(crate) next_sibling: NodeRef,
+    pub(crate) placeholder: Option<VNode>,
+    pub(crate) node_ref: NodeRef,
+    pub(crate) props: Rc<COMP::Properties>,
+    pub(crate) link: ComponentLink<COMP>,
 }
 
 impl<COMP: Component> From<UpdateTask<COMP>> for ComponentTask<COMP> {
@@ -104,7 +103,7 @@ pub(crate) enum UpdateTask<COMP: Component> {
 }
 
 pub(crate) struct ComponentRunnable<COMP: Component> {
-    state: Shared<Option<ComponentState<COMP>>>,
+    pub(crate) state: Shared<Option<ComponentState<COMP>>>,
     pub(crate) task: ComponentTask<COMP>,
 }
 
@@ -125,7 +124,6 @@ impl<COMP: Component> Runnable for ComponentRunnable<COMP> {
                 }
             }
             ComponentTask::Render(first_render) => {
-                let state_clone = self.state.clone();
                 if let Some(mut state) = self.state.borrow_mut().as_mut() {
                     // Skip render if we haven't seen the "first render" yet
                     if !first_render && state.last_root.is_none() {
@@ -140,32 +138,29 @@ impl<COMP: Component> Runnable for ComponentRunnable<COMP> {
                             new_root.apply(&parent_link, &state.parent, next_sibling, last_root);
                         state.node_ref.link(node);
                         state.last_root = Some(new_root);
-                        scheduler().push_comp(
-                            ComponentRunnableType::Rendered,
-                            Box::new(RenderedComponent {
-                                state: state_clone,
-                                first_render: self.first_render,
-                            }),
-                        );
+                        state.link.run(ComponentTask::Rendered(first_render));
                     }
                 }
             }
             ComponentTask::Rendered(first_render) => {
                 if let Some(mut state) = self.state.borrow_mut().as_mut() {
                     // Don't call rendered if we haven't seen the "first render" yet
-                    if !self.first_render && !state.has_rendered {
+                    if !first_render && !state.has_rendered {
                         return;
                     }
 
                     state.has_rendered = true;
                     let context = Context::new(&state.link, state.props.as_ref());
-                    state.component.rendered(context, self.first_render);
+                    state.component.rendered(context, first_render);
                     if !state.pending_updates.is_empty() {
                         scheduler().push_comp_update_batch(
                             state
                                 .pending_updates
                                 .drain(..)
-                                .map(|u| u as Box<dyn Runnable>),
+                                .map(|update| Box::new(ComponentRunnable {
+                                    state: self.state.clone(),
+                                    task: update.into(),
+                                }) as Box<dyn Runnable>),
                         );
                     }
                 }
@@ -173,26 +168,26 @@ impl<COMP: Component> Runnable for ComponentRunnable<COMP> {
             ComponentTask::Update(event) => {
                 if let Some(mut state) = current_state.as_mut() {
                     if state.new_root.is_some() {
-                        state.pending_updates.push(self);
+                        state.pending_updates.push(event);
                         return;
                     }
 
-                    let first_update = matches!(self.update, ComponentUpdate::First);
+                    let first_update = matches!(event, UpdateTask::First);
 
-                    let should_update = match self.update {
-                        ComponentUpdate::First => true,
-                        ComponentUpdate::Message(message) => {
+                    let should_update = match event {
+                        UpdateTask::First => true,
+                        UpdateTask::Message(message) => {
                             let context = Context::new(&state.link, state.props.as_ref());
                             state.component.update(context, message)
                         }
-                        ComponentUpdate::MessageBatch(messages) => {
+                        UpdateTask::MessageBatch(messages) => {
                             let component = &mut state.component;
                             let context = Context::new(&state.link, state.props.as_ref());
                             messages
                                 .into_iter()
                                 .fold(false, |acc, msg| component.update(context, msg) || acc)
                         }
-                        ComponentUpdate::Properties(props, node_ref, next_sibling) => {
+                        UpdateTask::Properties(props, node_ref, next_sibling) => {
                             // When components are updated, a new node ref could have been passed in
                             state.node_ref = node_ref;
                             // When components are updated, their siblings were likely also updated
@@ -210,13 +205,7 @@ impl<COMP: Component> Runnable for ComponentRunnable<COMP> {
 
                     if should_update {
                         state.new_root = Some(state.component.view(state.as_context()));
-                        scheduler().push_comp(
-                            ComponentRunnableType::Render,
-                            Box::new(RenderComponent {
-                                state: self.state,
-                                first_render: first_update,
-                            }),
-                        );
+                        state.link.run(ComponentTask::Render(first_update));
                     };
                 }
             }

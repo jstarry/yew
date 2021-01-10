@@ -32,7 +32,7 @@ pub(crate) struct Scheduler {
 }
 
 #[derive(Clone)]
-struct ComponentScheduler {
+pub(crate) struct ComponentScheduler {
     // Queues
     destroy: Shared<VecDeque<Box<dyn Runnable>>>,
     create: Shared<VecDeque<Box<dyn Runnable>>>,

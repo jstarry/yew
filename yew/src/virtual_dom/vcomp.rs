@@ -2,7 +2,8 @@
 
 use super::{Key, Transformer, VDiff, VNode};
 use crate::component::{
-    link::{ComponentUpdate, LinkHandle},
+    link::LinkHandle,
+    lifecycle::UpdateTask,
     AnyLink, Component, ComponentLink,
 };
 use crate::html::NodeRef;
@@ -174,11 +175,11 @@ impl<COMP: Component> Mountable for PropsWrapper<COMP> {
 
     fn reuse(self: Box<Self>, node_ref: NodeRef, context: &dyn LinkHandle, next_sibling: NodeRef) {
         let context: ComponentLink<COMP> = context.to_any().downcast();
-        context.update(ComponentUpdate::Properties(
+        context.run(UpdateTask::Properties(
             self.props,
             node_ref,
             next_sibling,
-        ));
+        ).into());
     }
 }
 
